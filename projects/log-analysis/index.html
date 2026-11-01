@@ -1,0 +1,2401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日志活动分析看板</title>
+<link rel="stylesheet" href="vendor/tailwind.min.css">
+<script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/echarts.min.js"></script>
+<style>
+:root {
+  --primary: #4A90D9;
+  --primary-dark: #357ABD;
+  --bg: #F0F2F5;
+  --card: #FFFFFF;
+  --text: #2C3E50;
+  --text-muted: #7F8C8D;
+  --border: #E8ECF1;
+  --danger: #E74C3C;
+  --success: #27AE60;
+  --warning: #F39C12;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'PingFang SC','Microsoft YaHei',sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+.header {
+  background: linear-gradient(135deg, #1A1A2E 0%, #16213E 50%, #0F3460 100%);
+  color: #fff;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+}
+.header-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-actions { display:flex; gap:10px; align-items:center; }
+.btn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.btn-upload { background: rgba(255,255,255,0.13); color:#fff; border:1.5px solid rgba(255,255,255,0.28); }
+.btn-upload:hover { background: rgba(255,255,255,0.22); }
+.btn-export { background: #4A90D9; color:#fff; }
+.btn-export:hover { background: #357ABD; }
+.btn-export:disabled { opacity:0.45; cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* ── Upload ── */
+.upload-area {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; min-height:calc(100vh - 60px); padding:40px;
+}
+.upload-box {
+  background: var(--card);
+  border: 2.5px dashed #C8D6E5;
+  border-radius: 18px;
+  padding: 60px 80px;
+  text-align:center;
+  cursor:pointer;
+  transition: all 0.3s;
+  max-width: 480px; width:100%;
+}
+.upload-box:hover, .upload-box.dragover {
+  border-color: var(--primary);
+  background: #F6FAFF;
+  box-shadow: 0 8px 32px rgba(74,144,217,0.1);
+}
+.upload-icon { font-size:52px; margin-bottom:18px; }
+.upload-text { font-size:16px; color: var(--text-muted); margin-bottom:8px; }
+.upload-hint { font-size:13px; color:#B0B8C4; }
+
+/* ── Dashboard ── */
+.dashboard { display:none; padding:20px 28px 40px; max-width:1440px; margin:0 auto; }
+
+/* ── Overview Cards ── */
+.overview-cards {
+  display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:18px;
+}
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+  transition: box-shadow 0.2s;
+}
+.card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.09); }
+.card-label {
+  font-size:12px; color:var(--text-muted); font-weight:600;
+  text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;
+}
+.card-value { font-size:22px; font-weight:700; color:var(--primary); }
+.card-detail { font-size:13px; color:var(--text-muted); margin-top:8px; line-height:1.9; }
+.tag {
+  display:inline-block; background:#EBF5FB; color:#2E6DA4;
+  padding:2px 9px; border-radius:12px; font-size:12px; margin:2px 4px 2px 0;
+}
+.name-tag {
+  display:inline-block; background:#F3F4F6; color:#374151;
+  padding:2px 9px; border-radius:12px; font-size:12px; margin:2px 3px 2px 0;
+}
+
+/* ── Person Selector ── */
+.person-selector {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px 20px;
+  margin-bottom: 18px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+}
+.selector-label { font-size:12px; color:var(--text-muted); font-weight:600; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px; }
+.person-tags { display:flex; flex-wrap:wrap; gap:8px; }
+.person-tag {
+  padding: 5px 14px; border-radius:20px; font-size:13px;
+  cursor:pointer; border:1.5px solid var(--border); background:#FAFBFC;
+  color:var(--text); transition:all 0.18s; user-select:none;
+}
+.person-tag:hover { border-color:var(--primary); background:#F0F7FF; color:var(--primary); }
+.person-tag.active {
+  border-color:var(--primary); background:var(--primary); color:#fff;
+  box-shadow:0 2px 8px rgba(74,144,217,0.28);
+}
+.dept-sub { font-size:11px; opacity:0.7; margin-left:4px; }
+.selector-row { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.mode-tabs {
+  display:inline-flex; gap:0; border-radius:8px; overflow:hidden;
+  border:1.5px solid var(--border); background:#FAFBFC;
+}
+.mode-tab {
+  padding: 5px 16px; font-size:12px; font-weight:600; cursor:pointer;
+  border:none; background:transparent; color:var(--text-muted);
+  transition:all 0.2s; user-select:none; white-space:nowrap;
+  display:flex; align-items:center; gap:5px;
+}
+.mode-tab:not(:last-child) { border-right:1.5px solid var(--border); }
+.mode-tab:hover { background:#F0F2F5; }
+.mode-tab.active { background:var(--primary); color:#fff; }
+.person-tag.compare-on {
+  border-color:#8E44AD; background:#F5EEF8; color:#8E44AD;
+}
+.compare-hint { font-size:12px; color:var(--text-muted); flex:1; text-align:right; }
+
+/* ── Category Detail Panel ── */
+.cat-panel {
+  border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px;
+}
+.cat-panel-header {
+  display:flex; align-items:center; padding:10px 16px; cursor:pointer;
+  background:#FAFBFC; transition:background 0.15s; user-select:none;
+}
+.cat-panel-header:hover { background:#F0F2F5; }
+.cat-panel-header.open { background:#F0F7FF; }
+.cat-panel-icon { font-size:16px; margin-right:8px; flex-shrink:0; }
+.cat-panel-label { font-size:13px; font-weight:700; flex:1; }
+.cat-panel-stat { font-size:12px; color:var(--text-muted); margin-right:14px; }
+.cat-panel-pct-bar { width:80px; height:7px; background:#E8ECF1; border-radius:4px; margin-right:12px; overflow:hidden; flex-shrink:0; }
+.cat-panel-pct-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+.cat-panel-toggle { font-size:12px; color:#aaa; transition:transform 0.2s; }
+.cat-panel-toggle.open { transform:rotate(90deg); }
+.cat-panel-body { display:none; padding:12px 16px; border-top:1px solid var(--border); }
+.cat-panel-body.open { display:block; }
+.cat-body-title { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.cat-body-item {
+  display:flex; align-items:center; padding:4px 0; font-size:12px;
+  border-bottom:1px solid #F5F5F5;
+}
+.cat-body-item:last-child { border-bottom:none; }
+.cat-body-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px; color:var(--text); }
+.cat-body-bar-wrap { width:100px; height:6px; background:#F0F0F0; border-radius:3px; margin:0 8px; flex-shrink:0; }
+.cat-body-bar { height:100%; border-radius:3px; transition:width 0.4s; }
+.cat-body-val { font-size:11px; color:var(--text-muted); width:48px; text-align:right; flex-shrink:0; }
+
+/* ── Compare Panel ── */
+.compare-panel {
+  display:none;
+  background: var(--card);
+  border-radius:12px;
+  padding:20px 24px;
+  margin-bottom:18px;
+  box-shadow:0 1px 6px rgba(0,0,0,0.06);
+  border:1px solid var(--border);
+}
+.compare-panel.show { display:block; }
+.compare-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border);
+}
+.compare-title { font-size:15px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+.compare-badge { background:#F5EEF8; color:#8E44AD; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.compare-close {
+  width:28px; height:28px; border-radius:50%; border:none; background:#F3F4F6;
+  cursor:pointer; font-size:16px; color:#999; display:flex; align-items:center; justify-content:center;
+  transition:all 0.15s;
+}
+.compare-close:hover { background:#E74C3C; color:#fff; }
+
+/* Compare sections */
+.compare-section { margin-bottom:18px; }
+.compare-section:last-child { margin-bottom:0; }
+.compare-section-title {
+  font-size:13px; font-weight:700; color:var(--text); margin-bottom:10px;
+  display:flex; align-items:center; gap:6px;
+}
+.compare-section-title .sec-icon { font-size:15px; }
+
+/* Dist table */
+.dist-table { width:100%; border-collapse:collapse; font-size:13px; }
+.dist-table th {
+  background:#F8F9FA; padding:8px 12px; text-align:left; font-weight:600; color:var(--text-muted);
+  border-bottom:2px solid var(--border); white-space:nowrap;
+}
+.dist-table th.person-col {
+  background:#F0F7FF; color:var(--primary); text-align:center; min-width:100px;
+}
+.dist-table td { padding:6px 12px; border-bottom:1px solid #F2F3F5; vertical-align:middle; }
+.dist-table tr:last-child td { border-bottom:none; }
+.dist-table .item-name { max-width:200px; overflow:hidden; text-nowrap; text-overflow:ellipsis; }
+.dist-bar-cell { min-width:140px; }
+.dist-bar-wrap { background:#F3F4F6; border-radius:3px; height:16px; position:relative; }
+.dist-bar {
+  height:100%; border-radius:3px; transition:width 0.4s;
+  min-width:2px;
+}
+.dist-bar.p0 { background:linear-gradient(90deg,#4A90D9,#6CB4EE); }
+.dist-bar.p1 { background:linear-gradient(90deg,#8E44AD,#BB8FCE); }
+.dist-val { font-size:12px; color:#666; white-space:nowrap; text-align:right; min-width:70px; }
+.dist-val .diff-up { color:#E74C3C; font-weight:600; }
+.dist-val .diff-down { color:#27AE60; font-weight:600; }
+.dist-only-badge {
+  display:inline-block; background:#FFF3CD; color:#856404; padding:1px 6px;
+  border-radius:8px; font-size:11px; font-weight:600;
+}
+
+/* Insight summary */
+.compare-insight {
+  background: linear-gradient(135deg, #F8F9FA 0%, #F0F2F5 100%);
+  border-radius:10px; padding:16px 20px; border-left:4px solid #8E44AD;
+}
+.insight-title { font-size:13px; font-weight:700; color:#8E44AD; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+.insight-list { list-style:none; padding:0; margin:0; }
+.insight-list li {
+  font-size:13px; color:var(--text); line-height:1.8; padding-left:18px; position:relative;
+}
+.insight-list li::before { content:'▸'; position:absolute; left:2px; color:#8E44AD; font-weight:bold; }
+.insight-list li strong { color:var(--text); }
+
+/* Compare radar chart */
+.compare-chart-wrap { width:100%; height:360px; }
+
+/* ── Activity Summary ── */
+.activity-card {
+  background: var(--card);
+  border-radius:12px;
+  padding:20px 24px;
+  margin-bottom:18px;
+  box-shadow:0 1px 6px rgba(0,0,0,0.06);
+  border:1px solid var(--border);
+}
+.activity-stats {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px;
+}
+.stat-item {
+  background:#F8FAFD; border-radius:10px; padding:14px 18px;
+  border-left:3px solid var(--primary);
+}
+.stat-item.danger { border-left-color:var(--danger); }
+.stat-item.warning { border-left-color:var(--warning); }
+.stat-item.success { border-left-color:var(--success); }
+.stat-label { font-size:12px; color:var(--text-muted); margin-bottom:6px; }
+.stat-value { font-size:22px; font-weight:700; color:var(--text); }
+.stat-unit { font-size:12px; color:var(--text-muted); margin-left:2px; }
+
+/* ── Anomaly Table ── */
+.section-title {
+  font-size:14px; font-weight:600; color:var(--text);
+  margin-bottom:12px; padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:8px;
+}
+.anomaly-table { width:100%; border-collapse:collapse; font-size:13px; }
+.anomaly-table th {
+  background:#F8FAFC; padding:8px 14px; text-align:left;
+  font-weight:600; color:var(--text-muted); border-bottom:2px solid var(--border);
+}
+.anomaly-table td { padding:7px 14px; border-bottom:1px solid #F0F2F5; }
+.anomaly-table tr:last-child td { border-bottom:none; }
+.anomaly-table tr:hover { background:#FAFBFC; }
+.badge { padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; }
+.badge-low { background:#FDEDEC; color:var(--danger); }
+.badge-high { background:#FEF9E7; color:#D68910; }
+
+/* ── Chart Cards ── */
+.chart-card {
+  background:var(--card); border-radius:12px; padding:20px;
+  box-shadow:0 1px 6px rgba(0,0,0,0.06); border:1px solid var(--border);
+}
+.chart-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+.chart-header {
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;
+}
+.chart-title { font-size:15px; font-weight:600; color:var(--text); display:flex; align-items:center; gap:8px; }
+.chart-container-md { height:360px; }
+.chart-container-lg { height:400px; }
+.chart-container-bar { height:40px; /* dynamic */ }
+
+/* ── Software Rank ── */
+.sw-wrap { display:grid; grid-template-columns:1.2fr 1fr; gap:20px; }
+.sw-chart { height:320px; }
+.sw-rank { max-height:320px; overflow-y:auto; }
+.sw-item {
+  display:flex; align-items:center; padding:6px 0;
+  font-size:13px; border-bottom:1px solid #F5F5F5;
+}
+.sw-item:last-child { border-bottom:none; }
+.sw-num {
+  width:22px; height:22px; border-radius:6px; display:flex;
+  align-items:center; justify-content:center; font-size:11px; font-weight:700;
+  margin-right:10px; flex-shrink:0;
+}
+.sw-num.r1 { background:#FFF3E0; color:#F57C00; }
+.sw-num.r2 { background:#F3E5F5; color:#8E24AA; }
+.sw-num.r3 { background:#E3F2FD; color:#1976D2; }
+.sw-num.rn { background:#F5F5F5; color:#999; }
+.sw-name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sw-bar-wrap { width:80px; height:7px; background:#F0F0F0; border-radius:4px; margin:0 8px; flex-shrink:0; }
+.sw-bar { height:100%; border-radius:4px; background:linear-gradient(90deg,#4A90D9,#6CB4EE); transition:width 0.5s; }
+.sw-val { font-size:12px; color:var(--text-muted); width:52px; text-align:right; flex-shrink:0; }
+
+/* ── Tabs ── */
+.tabs { display:flex; gap:4px; }
+.tab-btn {
+  padding:4px 12px; border-radius:6px; font-size:12px; cursor:pointer;
+  border:1px solid var(--border); background:#FAFBFC; color:var(--text-muted);
+  transition:all 0.15s;
+}
+.tab-btn:hover { border-color:var(--primary); color:var(--primary); }
+.tab-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+
+/* ── Main Navigation ── */
+.main-nav {
+  display:flex; gap:4px; margin-bottom:18px;
+  background:var(--card); padding:6px; border-radius:12px;
+  box-shadow:0 1px 6px rgba(0,0,0,0.06); border:1px solid var(--border);
+}
+.main-nav-btn {
+  flex:1; padding:10px 16px; border:none; border-radius:8px;
+  font-size:14px; font-weight:600; cursor:pointer;
+  background:transparent; color:var(--text-muted);
+  transition:all 0.2s; display:flex; align-items:center;
+  justify-content:center; gap:6px;
+}
+.main-nav-btn:hover { background:#F0F2F5; color:var(--text); }
+.main-nav-btn.active {
+  background:var(--primary); color:#fff;
+  box-shadow:0 2px 8px rgba(74,144,217,0.28);
+}
+.ov-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:18px; }
+
+/* ── Loading ── */
+.loading-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.28); z-index:200;
+  align-items:center; justify-content:center;
+}
+.loading-overlay.show { display:flex; }
+.loading-box {
+  background:#fff; padding:30px 48px; border-radius:14px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.15); text-align:center;
+}
+.spinner {
+  width:34px; height:34px; border:3px solid #E8ECF1;
+  border-top-color:var(--primary); border-radius:50%;
+  animation:spin 0.8s linear infinite; margin:0 auto 14px;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+.footer { text-align:center; padding:20px; color:#B0B8C4; font-size:12px; }
+@media (max-width:1024px) {
+  .chart-grid-2, .sw-wrap { grid-template-columns:1fr; }
+  .overview-cards { grid-template-columns:1fr; }
+  .activity-stats, .ov-stats { grid-template-columns:repeat(2,1fr); }
+  .main-nav-btn { font-size:13px; padding:8px 10px; gap:4px; }
+}
+
+/* ── Person Context Bar ── */
+#personContextBar {
+  display: none;
+  background: linear-gradient(90deg, #EBF3FB 0%, #F5F8FC 100%);
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  padding: 10px 20px;
+  margin-bottom: 16px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+  box-shadow: 0 1px 4px rgba(74,144,217,0.08);
+}
+#personContextBar .ctx-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+#personContextBar .ctx-divider {
+  color: #C5D4E6;
+  font-size: 16px;
+  margin: 0 2px;
+}
+#personContextBar .ctx-range {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+</style>
+</head>
+<body>
+<div style="padding:12px 24px;background:#fff4d6;color:#654b15">作品集演示 · 仅使用合成日志。进程活动时长不等于工作时长或个人绩效。 <button class="btn" onclick="loadDemo()">载入合成示例</button></div>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-title">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+    </svg>
+    日志活动分析看板
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-upload" onclick="document.getElementById('fileInput').click()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      上传文件
+    </button>
+    <button class="btn btn-export" id="btnExport" disabled onclick="exportAll()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      导出全员报告
+    </button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
+  </div>
+</div>
+
+<!-- Upload Area -->
+<div class="upload-area" id="uploadArea">
+  <div class="upload-box" id="uploadBox" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📊</div>
+    <div class="upload-text">点击或拖拽上传操作日志 Excel 文件</div>
+    <div class="upload-hint" style="margin-top:6px">支持 .xlsx / .xls 格式 · 数据在浏览器本地处理，不上传服务器</div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard" id="dashboard">
+
+  <!-- Overview Cards -->
+  <div class="overview-cards">
+    <div class="card">
+      <div class="card-label">📅 数据日期范围</div>
+      <div class="card-value" id="dateRange">—</div>
+      <div class="card-detail" id="dateDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">🏢 部门分布</div>
+      <div class="card-value" id="deptCount">—</div>
+      <div class="card-detail" id="deptDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">👥 人员总览</div>
+      <div class="card-value" id="personCount">—</div>
+      <div class="card-detail" id="personDetail"></div>
+    </div>
+  </div>
+
+  <!-- Main Navigation -->
+  <div class="main-nav" id="mainNav">
+    <button class="main-nav-btn active" data-view="overview" onclick="switchMainView('overview')">📊 全员总览</button>
+    <button class="main-nav-btn" data-view="dept" onclick="switchMainView('dept')">🏢 部门分析</button>
+    <button class="main-nav-btn" data-view="person" onclick="switchMainView('person')">👤 人员详情</button>
+  </div>
+
+  <!-- Overview View -->
+  <div id="overviewView">
+    <div class="ov-stats">
+      <div class="stat-item"><div class="stat-label">总活跃时长</div><div class="stat-value" id="ovTotalH">—<span class="stat-unit">h</span></div></div>
+      <div class="stat-item success"><div class="stat-label">人均日活跃时长</div><div class="stat-value" id="ovAvgH">—<span class="stat-unit">h</span></div></div>
+      <div class="stat-item"><div class="stat-label">工作日天数</div><div class="stat-value" id="ovWorkDays">—<span class="stat-unit">天</span></div></div>
+      <div class="stat-item danger"><div class="stat-label">异常人数</div><div class="stat-value" id="ovAnomalyCount">—<span class="stat-unit">人</span></div></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-header"><div class="chart-title">📊 全员工作性质分布</div></div>
+      <div class="sw-wrap">
+        <div class="sw-chart" id="chartOverviewPie"></div>
+        <div class="sw-rank" id="overviewRankList"></div>
+      </div>
+      <div id="overviewDetailPanels" style="margin-top:14px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><div class="chart-title">🏢 各部门人均日活 (h)</div></div>
+      <div id="chartOverviewDeptBar" style="height:360px"></div>
+    </div>
+  </div>
+
+  <!-- Dept View -->
+  <div id="deptView" style="display:none">
+    <div class="person-selector">
+      <div class="selector-label">选择部门查看详情</div>
+      <div class="person-tags" id="deptTags"></div>
+    </div>
+    <div id="deptContent"></div>
+  </div>
+
+  <!-- Person View -->
+  <div id="personView" style="display:none">
+
+  <!-- Person Selector -->
+  <div class="person-selector">
+    <div class="selector-row">
+      <div class="selector-label" style="margin-bottom:0">选择人员查看详情</div>
+      <div class="mode-tabs">
+        <button class="mode-tab active" id="tabSingle" onclick="switchMode('single')">👤 单人详情</button>
+        <button class="mode-tab" id="tabCompare" onclick="switchMode('compare')">🆚 横向对比</button>
+      </div>
+      <span class="compare-hint" id="compareHint" style="display:none">点击标签多选人员（至少2人）</span>
+    </div>
+    <div class="person-tags" id="personTags"></div>
+  </div>
+
+  <!-- Compare Panel -->
+  <div class="compare-panel" id="comparePanel">
+    <div class="compare-header">
+      <div class="compare-title">
+        🆚 人员工作分布对比
+        <span class="compare-badge" id="compareBadge">0人</span>
+      </div>
+      <button class="compare-close" onclick="switchMode('single')" title="退出对比">×</button>
+    </div>
+    <div id="compareContent"></div>
+    <div class="compare-chart-wrap" id="compareChartWrap">
+      <div id="compareChart" style="width:100%;height:100%"></div>
+    </div>
+  </div>
+
+  <!-- Single-person detail area (hidden in compare mode) -->
+  <div id="singleDetailArea">
+  <!-- Person Context Bar -->
+  <div id="personContextBar">
+    <span class="ctx-name">👤 <span id="ctxName">—</span></span>
+    <span class="ctx-divider">|</span>
+    <span class="ctx-range">📅 <span id="ctxRange">—</span></span>
+  </div>
+
+  <!-- Activity Summary -->
+  <div class="activity-card" id="activityCard">
+    <div class="activity-stats">
+      <div class="stat-item">
+        <div class="stat-label">工作日日均活跃时长</div>
+        <div class="stat-value" id="statAvg">—<span class="stat-unit">h</span></div>
+      </div>
+      <div class="stat-item success">
+        <div class="stat-label">工作日总天数</div>
+        <div class="stat-value" id="statWorkDays">—<span class="stat-unit">天</span></div>
+      </div>
+      <div class="stat-item danger">
+        <div class="stat-label">偏低异常天数</div>
+        <div class="stat-value" id="statLow">—<span class="stat-unit">天</span></div>
+      </div>
+      <div class="stat-item warning">
+        <div class="stat-label">偏高异常天数</div>
+        <div class="stat-value" id="statHigh">—<span class="stat-unit">天</span></div>
+      </div>
+    </div>
+    <div class="section-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E74C3C" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      工作日异常明细（偏低 &lt; 均值×50%，偏高 &gt; 均值×150%）
+    </div>
+    <div id="anomalyTableWrap">
+      <table class="anomaly-table">
+        <thead>
+          <tr>
+            <th>日期</th><th>星期</th><th>活跃时长 (h)</th><th>偏差</th><th>类型</th>
+          </tr>
+        </thead>
+        <tbody id="anomalyTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Work Category Distribution (replaces Software/Doc/Browser 3-sections) -->
+  <div class="chart-card" style="margin-bottom:18px" id="categoryCard">
+    <div class="chart-header">
+      <div class="chart-title">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#4A90D9" stroke-width="2">
+          <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>
+        </svg>
+        工作性质分布
+      </div>
+      <div id="categoryTabsWrap" class="tabs"></div>
+    </div>
+    <div id="categoryChartArea">
+      <div class="sw-wrap">
+        <div class="sw-chart" id="chartCategory"></div>
+        <div class="sw-rank" id="categoryRankList"></div>
+      </div>
+      <!-- Expandable detail panels for each category -->
+      <div id="categoryDetailPanels" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  </div>
+  <!-- End single-person detail area -->
+  </div>
+  <!-- End personView -->
+
+  <div class="footer">日志活动分析看板 · 数据仅供参考，请结合实际情况分析</div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div id="loadingText" style="color:#2C3E50;font-size:14px">正在解析数据...</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  CONSTANTS  (all lowercase to match _process)
+// ═══════════════════════════════════════════════
+const DOC_APPS = new Set([
+  'winword.exe','excel.exe','powerpnt.exe',
+  'wps.exe','notepad++.exe','notepad.exe','mybase.exe'
+]);
+const BROWSER_APPS = new Set(['chrome.exe','msedge.exe','360se.exe','firefox.exe']);
+
+// ── Noise Filter: 系统进程/安装包/临时文件，直接跳过不计入分析 ──
+const NOISE_PATTERNS = [
+  /\.(tmp|dat|log|cpl)$/i, /[0-9a-f]{12,}/i, /^\d{5,}\.exe$/i,
+  /^\d{4}-\d{2}-\d{2}/, /_(x64|win|64bit|32bit)_/,
+  /setup|install|installer|installshield|wizard|_update|patchupdate|autoupdate|uninstall|uninst|driver/i,
+  /crash|werfault|crashpad|bugreport|sendcrash|crashdumper|crashreport/i,
+  /微信\d{4}|weixin.*_\d|微.*信_.*\d/i, /老.*版本|新.*驱动|安装包|驱动/i,
+  /wpsuninstall|wpsupdate|wpscloud/i,
+  /sogou.*smart|sogou.*pinyin|输入法|搜狗|sgmyinput|sougou_pinyin/i,
+  /adobe.*arm|adobe.*licensing|acrotray/i, /updater\.exe$/i,
+  /nativeuihandler|mobsync|seappservice|aluscheduler|sangfor_updater/i,
+  /credentialenrollment|cryptokit|usbcleaner|usmsso|adskaccess/i,
+  /blankpage|edgeupdate|wuext|transerr|txupd|senddmp/i,
+  /securityhealth|sysdiag|sysclean|killbox|ccleaner|geek|iobit|pcappstore/i,
+  /hppfax|hpwucli|brccux|brindicator|broffline|brlauncher|brprintfinish/i,
+  /driverwizard|porthelper|vmusbmouse|driverpackage|dpinst/i,
+  /lenovodm|mblctr|lenovo/i, /^(un|ex)st\d+/i,
+];
+const NOISE_EXACT = new Set([
+  'lockapp.exe','dwm.exe','shellexperiencehost.exe','applicationframehost.exe',
+  'credentialuibroker.exe','startmenuexperiencehost.exe','searchapp.exe',
+  'searchui.exe','searchhost.exe','taskmgr.exe','splwow64.exe',
+  'colorcpl.exe','shellhost.exe','msdt.exe','rundll32.exe','msiexec.exe',
+  'conhost.exe','cmd.exe','powershell.exe','ctfmon.exe','mmc.exe',
+  'charmap.exe','xpsrchvw.exe','certutil.exe','host.exe',
+  'backgroundtaskhost.exe','fontdrvhost.exe','sihost.exe','taskhostw.exe',
+  'logonui.exe','runtimebroker.exe','textinputhost.exe',
+  'peopleexperiencehost.exe','notificationcenter.exe',
+  'settingcontenthost.exe','displaycolorcalibration.exe',
+  'shutdown.exe','taskkill.exe','winver.exe','wscript.exe','sdclt.exe',
+  'wab.exe','osk.exe','netsh.exe','reg.exe','sc.exe','pwsh.exe',
+  'msconfig.exe','msinfo32.exe','mshta.exe','displayswitch.exe',
+  'deviceproperties.exe','easeofaccessdialog.exe','quickassist.exe',
+  'printui.exe','sapisvr.exe','taskhosts.exe','bitsadmin.exe',
+  'resmon.exe','perfmon.exe','eventvwr.exe','regedit.exe',
+  '02.exe','07.exe','u.exe','start.exe','tool.exe','clear.exe',
+  'connect.exe','wslsettings.exe','sgfeedbackhelper.exe',
+  'bginfo.exe','systempropertiesadvanced.exe','optionalfeatures.exe',
+  'explorer.exe',
+]);
+function isNoise(proc) {
+  const p = proc.trim();
+  if (NOISE_EXACT.has(p)) return true;
+  return NOISE_PATTERNS.some(r => r.test(p));
+}
+
+// ── Work Category Classification ──
+const WORK_CATEGORIES = [
+  {
+    key: 'browser', label: '浏览器', icon: '🌐', color: '#4A90D9',
+    processes: new Set([
+      'chrome.exe','msedge.exe','360se.exe','firefox.exe','iexplore.exe',
+      'browserpro.exe','browser.exe','opera.exe','vivaldi.exe','brave.exe',
+      '2345explorer.exe','chromium.exe','quark.exe',
+      '2345piceditor.exe','2345picviewer.exe','sogouexplorer.exe','liebao.exe'
+    ])
+  },
+  {
+    key: 'office', label: '办公文档', icon: '📄', color: '#27AE60',
+    processes: new Set([
+      'winword.exe','excel.exe','powerpnt.exe','wps.exe','et.exe','wpp.exe',
+      'notepad++.exe','notepad.exe','mybase.exe','onenote.exe','visio.exe','mspub.exe',
+      'msaccess.exe','wordpad.exe','typora.exe','obsidian.exe','notion.exe',
+      'pdfeditor.exe','wpspdf.exe','acrobat.exe','acrord32.exe','foxit reader.exe',
+      'foxitpdfeditor.exe','foxitpdfreader.exe','fastpdf.exe','foxitphantompdf.exe',
+      'pdflauncher.exe','pdfmerge.exe','lanshanpdfconverter.exe',
+      'saplogon.exe','sap.exe','sapgui.exe','sapsettingsshow.exe',
+      '金山文档.exe','百度文库.exe','markdownpad.exe','hbuilder.exe',
+      'moffice.exe','wpsdesktop.exe','wpsoffice.exe','wpsofd.exe',
+      'wpsphoto+.exe','photos.exe','mspaint.exe',
+      'aioffice.exe','biofficelauncher.exe'
+    ])
+  },
+  {
+    key: 'im', label: '沟通协作', icon: '💬', color: '#E67E22',
+    processes: new Set([
+      'wechat.exe','weixin.exe','wxwork.exe','dingtalk.exe','teams.exe','lync.exe',
+      'slack.exe','telegram.exe','feishu.exe','zoom.exe','skype.exe','qq.exe','tim.exe',
+      '企业微信.exe','钉钉.exe','fabexample.exe','tblive.exe',
+      'wemeetapp.exe','voovmeeting.exe','tencentmeeting.exe',
+      'outlook.exe','foxmail.exe','thunderbird.exe',
+      'wechatappex.exe','corplink.exe','firstfloor.modernui.app.exe',
+      'firstfloor.app.shell.exe','icc client.exe',
+      'enterprisewechat.exe','ciscocollabhost.exe','wuying.exe','yuntu.exe',
+      'maxhub.exe','maxhubshare.exe','zalo.exe','zalocall.exe',
+      'people soft.exe','microsoft.online.cse.hybrid.app.exe',
+      'chat.exe','xzaitalkapp.exe','olk.exe','wx.exe'
+    ])
+  },
+  {
+    key: 'remote', label: '远程运维', icon: '🖥️', color: '#16A085',
+    processes: new Set([
+      'mstsc.exe','vncviewer.exe','todesk.exe','teamviewer.exe','anydesk.exe',
+      'sunloginclient.exe','awesun.exe','securecrt.exe','xshell.exe','putty.exe',
+      'mobaxterm.exe','mobaxterm_chs（汉化).exe','mobaxterm_personal_21.2_preview1.exe',
+      'mobaxterm_personal_22.1.exe','mobaxterm_personal_24.0.exe',
+      'mobaxterm_personal_24.3.exe','winscp.exe','filezilla.exe',
+      'vmware.exe','virtualbox.exe','wsl.exe','mintty.exe','windowsterminal.exe',
+      'vnc-viewer-7.10.0-windows.exe','wfica32.exe',
+      'barrier.exe','barriers.exe','zerotier_desktop_ui.exe',
+      'termius.exe','tabby.exe','xterminal.exe','kitty.exe','kvmrcs.exe',
+      'v2rayn.exe','clash for windows.exe','tailscale-ipn.exe',
+      'passwall.exe','zbvpn.exe','easyconnect.exe','globalprotect.exe',
+      'logioptionplus.exe','docker desktop.exe','ngrok.exe'
+    ])
+  },
+  {
+    key: 'dev', label: '开发工具', icon: '💻', color: '#8E44AD',
+    processes: new Set([
+      'code.exe','idea64.exe','idea.exe','pycharm64.exe','pycharm.exe',
+      'webstorm64.exe','datagrip64.exe','rider64.exe','clion64.exe','goland64.exe',
+      'eclipse.exe','devenv.exe','sublime_text.exe','atom.exe','vim.exe','gvim.exe',
+      'android studio.exe','postman.exe','insomnia.exe',
+      'navicat.exe','navicat premium.exe','heidisql.exe','sqlitebrowser.exe',
+      'trae cn.exe','trae.exe','cursor.exe','windsurf.exe','git.exe',
+      'github desktop.exe','sourcetree.exe','tortoisegit.exe',
+      'apifox.exe','apipost.exe','apipost7.exe','burpsuite.exe',
+      'arduino ide.exe','anaconda.exe','jupyter.exe',
+      'labelimg.exe','redisinsight.exe','redisinsight-v2.exe',
+      'ollama app.exe','open-webui.exe',
+      'python.exe','java.exe','javaw.exe','dotnet.exe',
+      '小程序开发者工具.exe','devecostudio64.exe'
+    ])
+  },
+  {
+    key: 'data', label: '数据分析', icon: '📊', color: '#F39C12',
+    processes: new Set([
+      'tableau.exe','powerbi.exe','pbidesk.exe','spss.exe','sas.exe',
+      'rstudio.exe','mysql.exe','pgadmin.exe',
+      'plsqldev.exe','dbeaver.exe','dbeaverc.exe',
+      'navicat.exe','navicat premium.exe',
+      'toad.exe','sqlyog.exe','dbvisualizer.exe','datagrip64.exe',
+      'ssms.exe','sqlite studio.exe',
+      'jmp.exe','bi-loader.exe','bi.exe','databasecompare.exe',
+      'dbfviewerplus1.74.exe','mydbaproj.exe','ncmdump.exe'
+    ])
+  },
+  {
+    key: 'ai', label: 'AI工具', icon: '🤖', color: '#9B59B6',
+    processes: new Set([
+      'doubao.exe','cherry studio.exe','chatgpt.exe',
+      'claude.exe','kimi 智能助手.exe','kiro.exe',
+      'm365copilot.exe','chatbox.exe','aichat.exe','aistudy.exe',
+      'yuanbao.exe','ima.copilot.exe','glm.exe',
+      'codebuddy cn.exe'
+    ])
+  },
+  {
+    key: 'design', label: '设计工具', icon: '🎨', color: '#E74C3C',
+    processes: new Set([
+      'photoshop.exe','illustrator.exe','xd.exe','figma.exe',
+      'sketch.exe','indesign.exe','coreldraw.exe','axure rp.exe','axure.exe',
+      'axurerp8.exe','axurerp9.exe',
+      'balsamiq.exe','mockplus.exe','mastergo.exe','miro.exe',
+      'acad.exe','autocad.exe','cadreader.exe','cadreader-editor.exe',
+      'zwcad.exe','cadview.exe','dwgview.exe','dwgfastview(cn-3)_v9.3.0.exe',
+      'edrawmax.exe','camtasia.exe','capture2.3.exe','apowerrec.exe'
+    ])
+  },
+  {
+    key: 'mes', label: 'MES/制造', icon: '🏭', color: '#1ABC9C',
+    processes: new Set([
+      'mesclinet.exe','mesclinet-js.exe','e1yarnbpe.exe',
+      'stp.smart.client.callgood.exe','serverdeviceview.exe','mesdemo.exe',
+      'ptoucheditor6.wpf.exe','dacs_explorer.exe','dacs_subexplorer.exe',
+      'example.app.exe','example.app-130.exe','example.app--袁花.exe',
+      'example.app-b.exe','example cloud driver.exe',
+      'jkccamstarclient.exe','dcmsghandler.exe','dcdesktop.exe',
+      'dgclient.exe','dgclientset.exe','dgcrypt.exe',
+      'easyclaw.exe','deopenclaw.exe','ecostruxure.exe','ezcad2.exe',
+      'cmfnss6.exe','cmfwebcontrol.exe','cnab4swd.exe',
+      'og3_connect_r2.exe','ipsmonitor.exe','ipsclient.exe',
+      'lcd.exe','sunwoo-vcf.exe',
+      'bralb60.exe','bspp75m.exe','ccbdetector.exe',
+      'ccc.center.exe','ccc.server.exe','clview.exe',
+      'cib.enterpriseassistant.exe','cibeassistant.exe','cibankclient.exe',
+      'dss client.exe','dssclient.exe',
+      'hmi.exe','hmibuilder.exe','mbslavex64.exe','mcgs_app.exe',
+      'mumunxdevice.exe','mumunxmain.exe',
+      'qclaw.exe','smartconsole.exe','smartconsolewrappergui.exe',
+      'usm.exe','wrdlv4.exe','ys95.exe',
+      'clientframe.exe','tsc组件.exe','报工接口查询.exe',
+      'fangup.exe','ppcip.exe','admin_tool.exe',
+      'clodopprint32.exe','clodopprint64.exe',
+      '返回工单接收查询.exe','返工工单接收查询.exe',
+      'factorymonitordesktop.exe','ptm7100sd.exe','ptm7100sm.exe',
+      'ptedit54.exe','epctrl.exe','epsmlan.exe',
+      'statis.exe','network_state_monitor.exe',
+      'stream_viewer.exe','qtscrcpy.exe',
+      '考勤查询.exe','在线el查看.exe','在线批次追溯卡.exe',
+      '北斗系统.exe','库位看板.exe','工厂产线监控启动器.exe',
+      '电池包追溯查询.exe','环保小智.exe','多能工导入报表处理.exe',
+      '故障率推送v2.0.exe','电池预算分析工具.exe',
+      '物料调账明细排查.exe','远程半片el-b区.exe',
+      '入库单信息重传wms_20260210.exe','oee数据查询.exe',
+      '迪联一脸通平台.exe','智能自助运维监视器.exe',
+      '7车间.app.exe','尖山2期.app.exe','肥东.app.exe','黄金线.app.exe'
+    ])
+  },
+  {
+    key: 'print', label: '打印标签', icon: '🖨️', color: '#95A5A6',
+    processes: new Set([
+      'bartend.exe','zebradesigner.exe','nicelabel.exe','codesoft.exe',
+      'printerhook.exe','printersettings.exe','smartquickrecord.exe',
+      '斑马420打印机驱动.exe','斑马510打印机.exe',
+      'brotherofflinechk.exe','brotherusbtool.exe',
+      'brother iprint&scan.exe'
+    ])
+  },
+  {
+    key: 'file', label: '文件管理', icon: '📂', color: '#7F8C8D',
+    processes: new Set([
+      'totalcmd.exe','doublecommander.exe',
+      'winrar.exe','7zfm.exe','7zg.exe','7z.exe','compress.exe','360zip.exe',
+      'bandizip.exe','peazip.exe','honeyview.exe',
+      'everything.exe','filelocatorpro.exe',
+      'diskgenius.exe','ultraiso.exe'
+    ])
+  },
+  {
+    key: 'utility', label: '效率工具', icon: '🔧', color: '#3498DB',
+    processes: new Set([
+      'snipaste.exe','pixpin.exe','screentool.exe','snippingtool.exe',
+      'picpick.exe','screenshot.exe','obs64.exe',
+      'youdaodict.exe','百度翻译.exe','deepl.exe','幕布.exe','语雀.exe',
+      'xmind.exe',
+      'utools.exe','quicker.exe','launchy.exe',
+      'rainlendar2.exe','win32calc.exe','qalculate.exe',
+      'bcompare.exe','kdiff3.exe','ditto.exe',
+      'motrix.exe','camscanner.exe','佳能645 扫描.exe','图片裁剪.exe',
+      '相似图片查找.exe','照片处理工具.exe','字由.exe','imageglass.exe',
+      'graphpad prism.exe','nEOiMAGING4.exe','photolaunch.exe','winhex.exe',
+      'autohotkey.exe','wallpaper.exe','bingwallpaper.exe',
+      '计时小工具.exe','演讲倒计时器.exe','北京时间.exe',
+      '子网掩码计算器.exe','地图距离计算工具.exe',
+      '螺纹速查表.exe','喜马拉雅.exe','gallery.exe',
+      'locallsend_app.exe'
+    ])
+  },
+  {
+    key: 'media', label: '影音媒体', icon: '🎬', color: '#E91E63',
+    processes: new Set([
+      'vlc.exe','potplayermini.exe','potplayermini64.exe','wmplayer.exe',
+      'clipchamp.exe','videopackage.exe','usmplayer.exe','oCam.exe'
+    ])
+  },
+  {
+    key: 'network', label: '网络安全', icon: '🛡️', color: '#607D8B',
+    processes: new Set([
+      'advanced ip scanner.exe','ipscan.exe','tcping.exe',
+      'multipingtool.exe','lansee2.01.exe',
+      '360safe.exe','360sd.exe','360tray.exe','360杀毒卫士.exe',
+      'atrusttray.exe','bitlockermgmt.exe','eguiproxy.exe',
+      'huawei cloud.exe','slitheris.exe'
+    ])
+  },
+  {
+    key: 'cloud', label: '云盘存储', icon: '☁️', color: '#00BCD4',
+    processes: new Set([
+      'baidunetdisk.exe','baidunetdiskimageviewer.exe','baidunetdiskunite.exe',
+      'quarkclouddrive.exe','seadrive-gui.exe','传我.exe'
+    ])
+  }
+];
+// 快速查找：process → category key
+const PROCESS_CATEGORY_MAP = new Map();
+WORK_CATEGORIES.forEach(cat => {
+  cat.processes.forEach(p => {
+    if (!PROCESS_CATEGORY_MAP.has(p)) PROCESS_CATEGORY_MAP.set(p, cat.key);
+  });
+});
+// 获取 category 对象
+const CATEGORY_MAP = new Map(WORK_CATEGORIES.map(c => [c.key, c]));
+
+const DOC_NOISE_WORDS = [
+  '正在打开','无标题','Microsoft Word','Microsoft Excel','Microsoft PowerPoint',
+  'WPS Office','记事本','查找','查找和替换','另存为','加载中','继续阅读',
+  '打开','文档标密','Microsoft','空表','首行为标题','文档1','文档2',
+  '工作簿1','工作簿2','演示文稿1','演示文稿2','Untitled'
+];
+const BROWSER_NOISE_WORDS = [
+  '新标签页','无标题','加载中','新建标签页 和另外','空白页','隐私设置错误',
+  '近期的下载记录','翻译','打开','继续','下载'
+];
+// ★ Fix: Edge zero-width space + optional regular space
+const BROWSER_SUFFIXES = [
+  / - Google Chrome$/i,
+  / - Microsoft\u200b?\s*Edge$/i,
+  / - 360安全浏览器$/i,
+  / - 360极速浏览器$/i,
+  / - Mozilla Firefox$/i,
+  / - Firefox$/i
+];
+const DOC_APP_SUFFIXES = [
+  / - 记事本$/i, / - Notepad\+\+$/i,
+  / \[只读\]/i, / \[兼容模式\]/i,
+  / - Word$/i, / - Excel$/i, / - PowerPoint$/i, / - WPS$/i
+];
+const WEEKDAYS_CN = ['日','一','二','三','四','五','六'];
+
+// ═══════════════════════════════════════════════
+//  GLOBALS
+// ═══════════════════════════════════════════════
+let rawData = [];
+let allPersons = [];
+let selectedLogin = null;
+let selectedDept = null;
+let currentMainView = 'overview';
+let docTabMode = 'duration';
+let browserTabMode = 'duration';
+let chartSoftware, chartDoc, chartBrowser, chartCompare;
+let chartOverviewPie, chartOverviewDeptBar, chartDeptPie, chartDeptTrend;
+let compareMode = false;
+let compareLogins = new Set();
+
+// ═══════════════════════════════════════════════
+//  FILE UPLOAD
+// ═══════════════════════════════════════════════
+const fileInput = document.getElementById('fileInput');
+const uploadBox = document.getElementById('uploadBox');
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+uploadBox.addEventListener('dragover', e => { e.preventDefault(); uploadBox.classList.add('dragover'); });
+uploadBox.addEventListener('dragleave', () => uploadBox.classList.remove('dragover'));
+uploadBox.addEventListener('drop', e => {
+  e.preventDefault(); uploadBox.classList.remove('dragover');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file) {
+  showLoading('正在解析数据...');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rawData = XLSX.utils.sheet_to_json(ws, { raw:true });
+      processData();
+      hideLoading();
+    } catch(err) {
+      hideLoading();
+      alert('文件解析失败：' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showLoading(t) {
+  document.getElementById('loadingText').textContent = t || '处理中...';
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function extractName(raw) { return (raw || '').split(/\s+/)[0]; }
+
+function parseDate(d) {
+  if (!d) return new Date(NaN);
+  if (d instanceof Date) return d;
+  const s = String(d).trim();
+  // yyyy-mm-dd or yyyy/mm/dd
+  const m1 = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if (m1) return new Date(+m1[1], +m1[2]-1, +m1[3]);
+  // m/d/yyyy
+  const m2 = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (m2) return new Date(+m2[3], +m2[1]-1, +m2[2]);
+  // m/d/yy
+  const m3 = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2})$/);
+  if (m3) { let y=+m3[3]; y+=(y<50)?2000:1900; return new Date(y,+m3[1]-1,+m3[2]); }
+  // Excel serial number
+  const num = Number(s);
+  if (!isNaN(num) && num > 30000 && num < 60000)
+    return new Date((Math.floor(num) - 25569) * 86400000);
+  return new Date(NaN);
+}
+
+function formatDate(d) {
+  const dt = parseDate(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+function isWorkday(d) { const day = parseDate(d).getDay(); return day >= 1 && day <= 5; }
+
+function getWeekdayCN(d) { return '周' + WEEKDAYS_CN[parseDate(d).getDay()]; }
+
+function cleanDocTitle(title) {
+  if (!title) return '';
+  let t = title.trim();
+  for (const re of DOC_APP_SUFFIXES) t = t.replace(re, '');
+  return t.trim();
+}
+
+function isDocNoise(title) {
+  if (!title || !title.trim()) return true;
+  return DOC_NOISE_WORDS.some(n => title.includes(n));
+}
+
+function cleanBrowserTitle(title) {
+  if (!title) return '';
+  let t = title.trim();
+  for (const re of BROWSER_SUFFIXES) t = t.replace(re, '');
+  // also strip " 和另外 N 个页面" variants
+  t = t.replace(/ 和另外 \d+ 个页面$/, '').trim();
+  return t;
+}
+
+function isBrowserNoise(title) {
+  if (!title || !title.trim()) return true;
+  return BROWSER_NOISE_WORDS.some(n => title.includes(n));
+}
+
+// ═══════════════════════════════════════════════
+//  DATA PROCESSING
+// ═══════════════════════════════════════════════
+function processData() {
+  rawData.forEach(r => {
+    r._dateStr  = formatDate(r['date']);
+    r._name     = extractName(r['姓名']);
+    r._dept     = String(r['体系-三级部门'] || '').trim();
+    r._process  = String(r['process_name'] || '').trim().toLowerCase();  // ★ always lowercase
+    r._duration = parseInt(r['duration']) || 0;
+    r._title    = String(r['window_title'] || '').trim();
+    r._noise    = isNoise(r._process);  // ★ mark noise rows
+  });
+
+  const personMap = new Map();
+  rawData.forEach(r => {
+    if (r._noise) return;  // skip noise rows from person list too
+    if (!personMap.has(r['login_name'])) {
+      personMap.set(r['login_name'], { login:r['login_name'], name:r._name, dept:r._dept });
+    }
+  });
+  allPersons = Array.from(personMap.values());
+
+  renderOverview();
+  renderPersonTags();
+  renderDeptTags();
+
+  // Show dashboard FIRST so chart containers have dimensions
+  document.getElementById('uploadArea').style.display = 'none';
+  document.getElementById('dashboard').style.display  = 'block';
+  document.getElementById('btnExport').disabled = false;
+
+  // Now init charts (containers are visible with correct dimensions)
+  initCharts();
+  renderOverviewView();
+  requestAnimationFrame(() => {
+    chartOverviewPie && chartOverviewPie.resize();
+    chartOverviewDeptBar && chartOverviewDeptBar.resize();
+  });
+
+  // Pre-select first person (ready for person view)
+  if (allPersons.length > 0) {
+    selectedLogin = allPersons[0].login;
+    document.querySelectorAll('#personTags .person-tag').forEach(t => {
+      t.classList.toggle('active', t.dataset.login === selectedLogin);
+    });
+  }
+}
+
+function renderOverview() {
+  const dates = [...new Set(rawData.map(r => r._dateStr))].sort();
+  document.getElementById('dateRange').textContent  = `${dates[0]} ~ ${dates[dates.length-1]}`;
+  document.getElementById('dateDetail').textContent = `共 ${dates.length} 天数据`;
+
+  const deptMap = new Map();
+  rawData.forEach(r => {
+    if (!deptMap.has(r._dept)) deptMap.set(r._dept, new Set());
+    deptMap.get(r._dept).add(r['login_name']);
+  });
+  document.getElementById('deptCount').textContent = `${deptMap.size} 个部门`;
+  let dh = '';
+  deptMap.forEach((pset, dept) => {
+    const parts = dept.split('-');
+    const short = parts.length >= 3 ? parts[2] : dept;
+    dh += `<span class="tag">${short}（${pset.size}人）</span>`;
+  });
+  document.getElementById('deptDetail').innerHTML = dh;
+
+  document.getElementById('personCount').textContent = `${allPersons.length} 人`;
+  document.getElementById('personDetail').innerHTML  = allPersons.map(p => `<span class="name-tag">${p.name}</span>`).join('');
+}
+
+function renderPersonTags() {
+  const c = document.getElementById('personTags');
+  c.innerHTML = '';
+  allPersons.forEach(p => {
+    const tag = document.createElement('div');
+    tag.className = 'person-tag';
+    tag.dataset.login = p.login;
+    const parts = p.dept.split('-');
+    const short = parts.length >= 3 ? parts[2] : '';
+    tag.innerHTML = `${p.name}<span class="dept-sub">${short}</span>`;
+    tag.onclick = () => selectPerson(p.login);
+    c.appendChild(tag);
+  });
+}
+
+function selectPerson(login) {
+  if (compareMode) {
+    // Multi-select toggle
+    if (compareLogins.has(login)) {
+      compareLogins.delete(login);
+    } else {
+      compareLogins.add(login);
+    }
+    document.querySelectorAll('.person-tag').forEach(t => {
+      const l = t.dataset.login;
+      t.classList.toggle('compare-on', compareLogins.has(l));
+      t.classList.remove('active');
+    });
+    renderCompare();
+    return;
+  }
+  selectedLogin = login;
+  document.querySelectorAll('.person-tag').forEach(t => {
+    t.classList.toggle('active', t.dataset.login === login);
+  });
+  updateAll();
+}
+
+function getPersonData(login) {
+  return rawData.filter(r => r['login_name'] === login && !r._noise);
+}
+
+// ═══════════════════════════════════════════════
+//  CHART INIT
+// ═══════════════════════════════════════════════
+function initCharts() {
+  chartSoftware = echarts.init(document.getElementById('chartCategory'));
+  chartDoc      = null;
+  chartBrowser  = null;
+  chartCompare  = echarts.init(document.getElementById('compareChart'));
+  chartOverviewPie = echarts.init(document.getElementById('chartOverviewPie'));
+  chartOverviewDeptBar = echarts.init(document.getElementById('chartOverviewDeptBar'));
+  // Dept charts initialized on first dept selection
+  chartDeptPie = null;
+  chartDeptTrend = null;
+  window.addEventListener('resize', () => {
+    chartSoftware.resize();
+    if (compareMode) chartCompare.resize();
+    if (currentMainView === 'overview') {
+      chartOverviewPie.resize();
+      chartOverviewDeptBar.resize();
+    }
+    if (currentMainView === 'dept' && chartDeptPie) {
+      chartDeptPie.resize();
+      chartDeptTrend && chartDeptTrend.resize();
+    }
+  });
+}
+
+function updateAll() {
+  const data = getPersonData(selectedLogin);
+
+  // ── 更新人员标注栏 ──
+  const bar = document.getElementById('personContextBar');
+  if (selectedLogin && data.length > 0) {
+    const person = allPersons.find(p => p.login === selectedLogin);
+    const personName = person ? person.name : selectedLogin;
+    const dates = data.map(r => r._dateStr).filter(Boolean).sort();
+    const dateMin = dates[0];
+    const dateMax = dates[dates.length - 1];
+    document.getElementById('ctxName').textContent = personName;
+    document.getElementById('ctxRange').textContent = `${dateMin} ~ ${dateMax}`;
+    bar.style.display = 'flex';
+  } else {
+    bar.style.display = 'none';
+  }
+
+  updateActivitySection(data);
+  updateCategoryChart(data);
+}
+
+// ═══════════════════════════════════════════════
+//  ACTIVITY SUMMARY + ANOMALY TABLE (workdays only)
+// ═══════════════════════════════════════════════
+function updateActivitySection(data) {
+  // Build daily map for workdays only
+  const dateMap = new Map();
+  data.forEach(r => {
+    if (!isWorkday(r._dateStr)) return;
+    dateMap.set(r._dateStr, (dateMap.get(r._dateStr) || 0) + r._duration);
+  });
+
+  const workdayDates = [...dateMap.keys()].sort();
+  const workdayHours = workdayDates.map(d => dateMap.get(d) / 3600);
+  const avgH = workdayHours.length > 0
+    ? workdayHours.reduce((a,b) => a+b, 0) / workdayHours.length
+    : 0;
+  const lowThreshold  = avgH * 0.5;
+  const highThreshold = avgH * 1.5;
+
+  // Anomalies
+  const anomalies = workdayDates.map((d, i) => {
+    const h = workdayHours[i];
+    let type = null;
+    if (h < lowThreshold)  type = 'low';
+    if (h > highThreshold) type = 'high';
+    return { date: d, hours: h, type };
+  }).filter(a => a.type);
+
+  // Stats
+  document.getElementById('statAvg').innerHTML       = `${avgH.toFixed(1)}<span class="stat-unit">h</span>`;
+  document.getElementById('statWorkDays').innerHTML  = `${workdayDates.length}<span class="stat-unit">天</span>`;
+  document.getElementById('statLow').innerHTML       = `${anomalies.filter(a=>a.type==='low').length}<span class="stat-unit">天</span>`;
+  document.getElementById('statHigh').innerHTML      = `${anomalies.filter(a=>a.type==='high').length}<span class="stat-unit">天</span>`;
+
+  // Anomaly table
+  const tbody = document.getElementById('anomalyTbody');
+  if (anomalies.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:16px;">该员工工作日活跃情况正常，无异常记录</td></tr>';
+    return;
+  }
+  tbody.innerHTML = anomalies.map(a => {
+    const pct = avgH > 0 ? ((a.hours / avgH - 1) * 100) : 0;
+    const sign = pct >= 0 ? '+' : '';
+    const badgeClass = a.type === 'low' ? 'badge-low' : 'badge-high';
+    const badgeText  = a.type === 'low' ? '偏低' : '偏高';
+    return `<tr>
+      <td>${a.date}</td>
+      <td>${getWeekdayCN(a.date)}</td>
+      <td><strong>${a.hours.toFixed(2)}</strong></td>
+      <td style="color:${a.type==='low'?'var(--danger)':'#D68910'}">${sign}${pct.toFixed(1)}%</td>
+      <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+//  CATEGORY DISTRIBUTION CHART (replaces Software/Doc/Browser)
+// ═══════════════════════════════════════════════
+function updateCategoryChart(data) {
+  const categories = classifyByCategory(data);
+  if (categories.length === 0) {
+    chartSoftware.setOption({ title:{ text:'暂无数据', left:'center', top:'middle', textStyle:{color:'#999',fontSize:13} } }, true);
+    document.getElementById('categoryRankList').innerHTML = '';
+    document.getElementById('categoryDetailPanels').innerHTML = '';
+    return;
+  }
+
+  const totalDur = categories.reduce((s, c) => s + c.dur, 0);
+
+  // ── Pie chart (by category) ──
+  const pieData = categories.map(c => ({
+    name: `${c.icon} ${c.label}`,
+    value: c.dur,
+    itemStyle: { color: c.color }
+  }));
+
+  chartSoftware.setOption({
+    tooltip: { trigger:'item', formatter: p => `${p.name}<br/>${(p.value/3600).toFixed(1)}h (${p.percent}%)` },
+    legend: { show:false },
+    series: [{
+      type:'pie', radius:['38%','70%'], center:['50%','50%'],
+      itemStyle: { borderRadius:4, borderColor:'#fff', borderWidth:2 },
+      label: { show:true, formatter: p => `${p.name}\n${p.percent}%`, fontSize:11, overflow:'truncate', ellipsis:'..', width:90, lineOverflow:'truncate' },
+      labelLine: { length:12, length2:8 },
+      labelLayout: { hideOverlap:true, moveOverlap:'shiftY' },
+      emphasis: { label:{ show:true, fontSize:13, fontWeight:'bold' } },
+      data: pieData
+    }]
+  }, true);
+  requestAnimationFrame(() => chartSoftware.resize());
+
+  // ── Rank list + Expandable detail panels ──
+  renderCategoryPanels(categories, 'categoryRankList', 'categoryDetailPanels', 'person');
+}
+
+function toggleCatPanel(idx) {
+  const body   = document.getElementById(`catBody_${idx}`);
+  const toggle = document.getElementById(`catToggle_${idx}`);
+  const header = body.previousElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+
+// ═══════════════════════════════════════════════
+//  SHARED: renderCategoryPanels (rank list + expandable detail)
+//  Used by overview, dept, and person views
+// ═══════════════════════════════════════════════
+function renderCategoryPanels(categories, rankListId, detailPanelsId, panelPrefix) {
+  const rankEl = document.getElementById(rankListId);
+  const panelsEl = document.getElementById(detailPanelsId);
+  if (!rankEl || !panelsEl) return;
+  if (!categories || categories.length === 0) {
+    rankEl.innerHTML = '';
+    panelsEl.innerHTML = '';
+    return;
+  }
+
+  const maxDur = categories[0].dur;
+
+  // Rank list
+  rankEl.innerHTML = categories.map((c, i) => {
+    const pct   = (c.dur / maxDur * 100).toFixed(0);
+    const hours = (c.dur / 3600).toFixed(1);
+    const nc    = i===0?'r1':i===1?'r2':i===2?'r3':'rn';
+    return `<div class="sw-item">
+      <div class="sw-num ${nc}">${i+1}</div>
+      <div class="sw-name">${c.icon} ${c.label}</div>
+      <div class="sw-bar-wrap"><div class="sw-bar" style="width:${pct}%;background:${c.color}"></div></div>
+      <div class="sw-val">${hours}h</div>
+    </div>`;
+  }).join('');
+
+  // Expandable detail panels
+  panelsEl.innerHTML = categories.map((c, idx) => {
+    const pct = (c.pct * 100).toFixed(1);
+    const hours = (c.dur / 3600).toFixed(1);
+    const panelIdx = `${panelPrefix}_${idx}`;
+
+    let bodyHtml = '';
+    if (c.key === 'browser' && c.brItems.length > 0) {
+      const maxItemDur = c.brItems[0].dur;
+      bodyHtml += `<div class="cat-body-title">🌐 浏览器标签页（帕累托 80% 耗时）</div>`;
+      bodyHtml += c.brItems.map(item => {
+        const barPct = maxItemDur > 0 ? (item.dur / maxItemDur * 100).toFixed(0) : 0;
+        return `<div class="cat-body-item">
+          <div class="cat-body-name" title="${item.name}">${item.name}</div>
+          <div class="cat-body-bar-wrap"><div class="cat-body-bar" style="width:${barPct}%;background:${c.color}"></div></div>
+          <div class="cat-body-val">${(item.dur/3600).toFixed(1)}h</div>
+        </div>`;
+      }).join('');
+    } else if (c.key === 'office' && c.docItems.length > 0) {
+      const maxItemDur = c.docItems[0].dur;
+      bodyHtml += `<div class="cat-body-title">📄 文档文件（帕累托 80% 耗时）</div>`;
+      bodyHtml += c.docItems.map(item => {
+        const barPct = maxItemDur > 0 ? (item.dur / maxItemDur * 100).toFixed(0) : 0;
+        return `<div class="cat-body-item">
+          <div class="cat-body-name" title="${item.name}">${item.name}</div>
+          <div class="cat-body-bar-wrap"><div class="cat-body-bar" style="width:${barPct}%;background:${c.color}"></div></div>
+          <div class="cat-body-val">${(item.dur/3600).toFixed(1)}h</div>
+        </div>`;
+      }).join('');
+    } else if (c.subItems.length > 0) {
+      const maxItemDur = c.subItems[0].dur;
+      bodyHtml += `<div class="cat-body-title">💡 软件进程明细</div>`;
+      bodyHtml += c.subItems.slice(0, 15).map(item => {
+        const barPct = maxItemDur > 0 ? (item.dur / maxItemDur * 100).toFixed(0) : 0;
+        return `<div class="cat-body-item">
+          <div class="cat-body-name" title="${item.name}">${item.name}</div>
+          <div class="cat-body-bar-wrap"><div class="cat-body-bar" style="width:${barPct}%;background:${c.color}"></div></div>
+          <div class="cat-body-val">${(item.dur/3600).toFixed(1)}h</div>
+        </div>`;
+      }).join('');
+    } else {
+      bodyHtml = '<div style="color:#999;font-size:12px">暂无进一步明细数据</div>';
+    }
+
+    return `<div class="cat-panel" id="catPanel_${panelIdx}">
+      <div class="cat-panel-header" onclick="toggleCatPanelById('${panelIdx}')">
+        <span class="cat-panel-icon">${c.icon}</span>
+        <span class="cat-panel-label" style="color:${c.color}">${c.label}</span>
+        <span class="cat-panel-stat">${hours}h · ${pct}%</span>
+        <div class="cat-panel-pct-bar">
+          <div class="cat-panel-pct-fill" style="width:${pct}%;background:${c.color}"></div>
+        </div>
+        <span class="cat-panel-toggle" id="catToggle_${panelIdx}">▶</span>
+      </div>
+      <div class="cat-panel-body" id="catBody_${panelIdx}">${bodyHtml}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleCatPanelById(panelIdx) {
+  const body   = document.getElementById(`catBody_${panelIdx}`);
+  const toggle = document.getElementById(`catToggle_${panelIdx}`);
+  const header = body.previousElementSibling;
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  toggle.classList.toggle('open', !isOpen);
+  header.classList.toggle('open', !isOpen);
+}
+
+// ─── backward-compat stubs (no longer used in single-person view) ───
+function updateSoftwareChart(data) { /* deprecated */ }
+function updateDocChart(data, mode) { /* deprecated */ }
+function updateBrowserChart(data, mode) { /* deprecated */ }
+function switchDocTab(mode) { /* deprecated */ }
+function switchBrowserTab(mode) { /* deprecated */ }
+
+// ═══════════════════════════════════════════════
+//  DATA HELPERS: DOC & BROWSER window_title
+// ═══════════════════════════════════════════════
+function buildDocData(data) {
+  const map = new Map();
+  data.filter(r => DOC_APPS.has(r._process)).forEach(r => {
+    const raw     = r._title;
+    const cleaned = cleanDocTitle(raw);
+    if (isDocNoise(raw) && isDocNoise(cleaned)) return;
+    const key = cleaned || raw;
+    if (!key || isDocNoise(key)) return;
+    if (!map.has(key)) map.set(key, { duration:0, count:0 });
+    map.get(key).duration += r._duration;
+    map.get(key).count    += 1;
+  });
+  return map;
+}
+
+function buildBrowserData(data) {
+  const map = new Map();
+  data.filter(r => BROWSER_APPS.has(r._process)).forEach(r => {
+    const cleaned = cleanBrowserTitle(r._title);
+    if (isBrowserNoise(cleaned)) return;
+    if (!map.has(cleaned)) map.set(cleaned, { duration:0, count:0 });
+    map.get(cleaned).duration += r._duration;
+    map.get(cleaned).count    += 1;
+  });
+  return map;
+}
+
+// ═══════════════════════════════════════════════
+//  CATEGORY-BASED CLASSIFICATION
+// ═══════════════════════════════════════════════
+/**
+ * 将一个人的数据按工作性质归类
+ * 返回：Array of { key, label, icon, color, dur, pct,
+ *                  subItems (进程级，用于非 browser/doc 大类),
+ *                  docItems (window_title 级，仅 office 类),
+ *                  brItems  (window_title 级，仅 browser 类) }
+ * 结果按 dur 降序，pct < 1% 且非 browser/office 合并到「其他」
+ */
+function classifyByCategory(data) {
+  // Step1: process → duration (skip noise)
+  const procMap = new Map();
+  data.forEach(r => { if (!r._noise) procMap.set(r._process, (procMap.get(r._process) || 0) + r._duration); });
+
+  // Step2: 归类
+  const catDur  = new Map(); // key → total duration
+  const catProc = new Map(); // key → Map<process, dur>
+  procMap.forEach((dur, proc) => {
+    const catKey = PROCESS_CATEGORY_MAP.get(proc) || 'other';
+    catDur.set(catKey,  (catDur.get(catKey)  || 0) + dur);
+    if (!catProc.has(catKey)) catProc.set(catKey, new Map());
+    catProc.get(catKey).set(proc, (catProc.get(catKey).get(proc) || 0) + dur);
+  });
+
+  const totalDur = [...catDur.values()].reduce((s, v) => s + v, 0);
+
+  // Step3: 构建结果 — 已知大类 + other
+  const result = [];
+  WORK_CATEGORIES.forEach(cat => {
+    const dur = catDur.get(cat.key) || 0;
+    if (dur === 0) return;
+    const pct = totalDur > 0 ? dur / totalDur : 0;
+
+    // Sub items (process level), sorted by duration
+    const subMap = catProc.get(cat.key) || new Map();
+    const subItems = [...subMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([proc, d]) => ({ name: proc.replace('.exe', '').toUpperCase(), proc, dur: d, pct: totalDur > 0 ? d / totalDur : 0 }));
+
+    // For browser: window_title level
+    let brItems = [];
+    if (cat.key === 'browser') {
+      const brMap = buildBrowserData(data);
+      brItems = [...brMap.entries()]
+        .map(([name, v]) => ({ name, dur: v.duration, count: v.count }))
+        .sort((a, b) => b.dur - a.dur);
+      // Pareto 80%
+      let cum = 0; const brTotal = brItems.reduce((s, i) => s + i.dur, 0); const bf = [];
+      for (const item of brItems) { bf.push(item); cum += item.dur; if (cum >= brTotal * 0.8 || bf.length >= 20) break; }
+      brItems = bf;
+    }
+
+    // For office: window_title level
+    let docItems = [];
+    if (cat.key === 'office') {
+      const docMap = buildDocData(data);
+      docItems = [...docMap.entries()]
+        .map(([name, v]) => ({ name, dur: v.duration, count: v.count }))
+        .sort((a, b) => b.dur - a.dur);
+      // Pareto 80%
+      let cum = 0; const docTotal = docItems.reduce((s, i) => s + i.dur, 0); const df = [];
+      for (const item of docItems) { df.push(item); cum += item.dur; if (cum >= docTotal * 0.8 || df.length >= 20) break; }
+      docItems = df;
+    }
+
+    result.push({ key: cat.key, label: cat.label, icon: cat.icon, color: cat.color, dur, pct, subItems, docItems, brItems });
+  });
+
+  // Other (unclassified)
+  const otherDur = catDur.get('other') || 0;
+  if (otherDur > 0) {
+    const otherPct = totalDur > 0 ? otherDur / totalDur : 0;
+    const subMap   = catProc.get('other') || new Map();
+    const subItems = [...subMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([proc, d]) => ({ name: proc.replace('.exe', '').toUpperCase(), proc, dur: d, pct: totalDur > 0 ? d / totalDur : 0 }));
+    result.push({ key: 'other', label: '其他软件', icon: '🔧', color: '#95A5A6', dur: otherDur, pct: otherPct, subItems, docItems: [], brItems: [] });
+  }
+
+  // Sort by dur desc
+  result.sort((a, b) => b.dur - a.dur);
+  return result;
+}
+
+// ═══════════════════════════════════════════════
+//  COMPARE MODE
+// ═══════════════════════════════════════════════
+function toggleCompareMode() {
+  // Kept for backward compat; real logic is in switchMode
+}
+
+function switchMode(mode) {
+  const tabSingle  = document.getElementById('tabSingle');
+  const tabCompare = document.getElementById('tabCompare');
+  const hint       = document.getElementById('compareHint');
+  const panel      = document.getElementById('comparePanel');
+  const singleArea = document.getElementById('singleDetailArea');
+
+  if (mode === 'compare') {
+    compareMode = true;
+    tabSingle.classList.remove('active');
+    tabCompare.classList.add('active');
+    hint.style.display = 'block';
+    singleArea.style.display = 'none';
+    panel.classList.add('show');
+    // Clear single-select visual
+    document.querySelectorAll('.person-tag').forEach(t => {
+      t.classList.remove('active');
+      // Keep compare-on if already selected
+    });
+    renderCompare();
+  } else {
+    compareMode = false;
+    tabSingle.classList.add('active');
+    tabCompare.classList.remove('active');
+    hint.style.display = 'none';
+    singleArea.style.display = 'block';
+    compareLogins.clear();
+    panel.classList.remove('show');
+    document.getElementById('compareChartWrap').style.display = 'none';
+    // Restore single-select visual
+    document.querySelectorAll('.person-tag').forEach(t => {
+      t.classList.remove('compare-on');
+      t.classList.toggle('active', t.dataset.login === selectedLogin);
+    });
+    // If nothing selected, keep hidden
+    if (selectedLogin) updateAll();
+  }
+}
+
+function aggregatePerson(login) {
+  const data = getPersonData(login);
+  const person = allPersons.find(p => p.login === login);
+
+  // Workday daily hours
+  const dateMap = new Map();
+  data.forEach(r => {
+    if (!isWorkday(r._dateStr)) return;
+    dateMap.set(r._dateStr, (dateMap.get(r._dateStr) || 0) + r._duration);
+  });
+  const wdDates = [...dateMap.keys()].sort();
+  const wdHours = wdDates.map(d => dateMap.get(d) / 3600);
+  const avgH    = wdHours.length ? wdHours.reduce((a,b) => a+b, 0) / wdHours.length : 0;
+  const totalH  = data.reduce((s,r) => s + r._duration, 0) / 3600;
+  const lowDays = wdHours.filter(h => avgH > 0 && h < avgH * 0.5).length;
+  const highDays = wdHours.filter(h => avgH > 0 && h > avgH * 1.5).length;
+
+  // Software distribution (pareto 90%, all items)
+  const swMap = new Map();
+  data.forEach(r => swMap.set(r._process, (swMap.get(r._process) || 0) + r._duration));
+  const swTotal = [...swMap.values()].reduce((s,v) => s+v, 0);
+  let swItems = [...swMap.entries()].sort((a,b) => b[1] - a[1]);
+  // Pareto 90% cutoff
+  let swCum = 0; const swFiltered = [];
+  for (const [name, dur] of swItems) {
+    swFiltered.push({ name: name.replace('.exe','').toUpperCase(), dur, pct: dur / swTotal });
+    swCum += dur;
+    if (swCum >= swTotal * 0.9 || swFiltered.length >= 25) break;
+  }
+  swItems = swFiltered;
+
+  // Doc distribution (pareto 80%)
+  const docMap = buildDocData(data);
+  let docItems = [...docMap.entries()].map(([name,v]) => ({ name, dur:v.duration, count:v.count }));
+  docItems.sort((a,b) => b.dur - a.dur);
+  const docTotal = docItems.reduce((s,i) => s + i.dur, 0);
+  let docCum = 0; const docFiltered = [];
+  for (const item of docItems) {
+    docFiltered.push(item);
+    docCum += item.dur;
+    if (docCum >= docTotal * 0.8 || docFiltered.length >= 20) break;
+  }
+  docItems = docFiltered;
+
+  // Browser distribution (pareto 80%)
+  const brMap = buildBrowserData(data);
+  let brItems = [...brMap.entries()].map(([name,v]) => ({ name, dur:v.duration, count:v.count }));
+  brItems.sort((a,b) => b.dur - a.dur);
+  const brTotal = brItems.reduce((s,i) => s + i.dur, 0);
+  let brCum = 0; const brFiltered = [];
+  for (const item of brItems) {
+    brFiltered.push(item);
+    brCum += item.dur;
+    if (brCum >= brTotal * 0.8 || brFiltered.length >= 20) break;
+  }
+  brItems = brFiltered;
+
+  // Category-based classification (new)
+  const categoryItems = classifyByCategory(data);
+
+  return { person, avgH, totalH, wdDays: wdDates.length, lowDays, highDays,
+           swItems, docItems, brItems,
+           swTotal: swTotal/3600, docTotal: docTotal/3600, brTotal: brTotal/3600,
+           categoryItems };
+}
+
+function renderCompare() {
+  const logins = [...compareLogins];
+  const badge  = document.getElementById('compareBadge');
+  const content = document.getElementById('compareContent');
+  const chartWrap = document.getElementById('compareChartWrap');
+
+  badge.textContent = logins.length + '人';
+
+  if (logins.length < 2) {
+    content.innerHTML = '<div style="text-align:center;color:#999;padding:32px 0;font-size:14px">请至少选择 2 名人员开始对比</div>';
+    chartWrap.style.display = 'none';
+    return;
+  }
+
+  const profiles = logins.map(l => aggregatePerson(l));
+  const colors   = ['#4A90D9','#8E44AD','#E67E22','#27AE60','#E74C3C'];
+  const names    = profiles.map(p => p.person.name);
+
+  let html = '';
+
+  // ── 1. Key Metrics Comparison ──
+  html += '<div class="compare-section">';
+  html += '<div class="compare-section-title"><span class="sec-icon">📊</span> 核心指标对比</div>';
+  const metrics = [
+    { label:'工作日日均活跃', key:'avgH', unit:'h', fmt: v => v.toFixed(1) },
+    { label:'总活跃时长',     key:'totalH', unit:'h', fmt: v => v.toFixed(1) },
+    { label:'工作日天数',     key:'wdDays', unit:'天', fmt: v => v },
+    { label:'偏低异常天数',   key:'lowDays', unit:'天', fmt: v => v },
+    { label:'偏高异常天数',   key:'highDays', unit:'天', fmt: v => v },
+  ];
+  html += '<table class="dist-table"><thead><tr><th>指标</th>';
+  names.forEach((n,i) => html += `<th class="person-col" style="color:${colors[i]}">${n}</th>`);
+  html += '</tr></thead><tbody>';
+  metrics.forEach(m => {
+    const vals = profiles.map(p => m.fmt(p[m.key]));
+    html += `<tr><td>${m.label} (${m.unit})</td>`;
+    vals.forEach((v,i) => html += `<td style="text-align:center;font-weight:600">${v}</td>`);
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // ── 2. Category Distribution Comparison ──
+  html += buildCategoryDistSection(profiles, colors, names);
+
+  // ── 3. Insight Summary ──
+  html += '<div class="compare-section">';
+  html += '<div class="compare-section-title"><span class="sec-icon">💡</span> 差异洞察</div>';
+  html += '<div class="compare-insight">';
+  html += '<div class="insight-title">🔍 关键发现</div>';
+  html += '<ul class="insight-list">';
+  const insights = generateInsights(profiles, colors, names);
+  insights.forEach(ins => html += `<li>${ins}</li>`);
+  if (insights.length === 0) html += '<li>两人工作分布较为接近，未发现显著差异</li>';
+  html += '</ul></div></div>';
+
+  content.innerHTML = html;
+
+  // ── Radar Chart ──
+  chartWrap.style.display = 'block';
+  renderCompareChart(profiles, colors, names);
+}
+
+function buildCategoryDistSection(profiles, colors, names) {
+  // Collect all category keys that appear in at least one person
+  const catKeySet = new Set();
+  profiles.forEach(p => p.categoryItems.forEach(c => catKeySet.add(c.key)));
+  const catKeys = WORK_CATEGORIES.map(c => c.key).filter(k => catKeySet.has(k));
+  if (catKeySet.has('other')) catKeys.push('other');
+
+  // Max duration across all people and all categories
+  let maxDur = 0;
+  profiles.forEach(p => p.categoryItems.forEach(c => { if (c.dur > maxDur) maxDur = c.dur; }));
+  if (maxDur === 0) maxDur = 1;
+
+  let html = `<div class="compare-section">`;
+  html += `<div class="compare-section-title"><span class="sec-icon">📊</span> 工作性质分布对比</div>`;
+  html += `<table class="dist-table"><thead><tr><th>工作性质大类</th>`;
+  names.forEach((n, i) => html += `<th class="person-col" style="color:${colors[i]}">${n}</th>`);
+  html += '</tr></thead><tbody>';
+
+  catKeys.forEach(key => {
+    const catMeta = CATEGORY_MAP.get(key) || { label:'其他软件', icon:'🔧', color:'#95A5A6' };
+    const rowData = profiles.map(p => {
+      const found = p.categoryItems.find(c => c.key === key);
+      return found ? found.dur : 0;
+    });
+    const totalInRow = rowData.reduce((a, b) => a + b, 0);
+    if (totalInRow === 0) return;
+
+    html += `<tr><td class="item-name">${catMeta.icon} <span style="color:${catMeta.color};font-weight:600">${catMeta.label}</span></td>`;
+    profiles.forEach((p, pi) => {
+      const dur = rowData[pi];
+      const hrs = dur / 3600;
+      const pct = (dur / maxDur * 100).toFixed(1);
+      if (dur === 0) {
+        const othersHave = rowData.filter((v, i) => i !== pi && v > 0).length > 0;
+        html += othersHave
+          ? `<td style="text-align:center"><span class="dist-only-badge">未涉及</span></td>`
+          : `<td style="text-align:center;color:#ccc">—</td>`;
+      } else {
+        let diffHtml = '';
+        if (profiles.length === 2) {
+          const otherDur = rowData[1 - pi];
+          if (otherDur > 0) {
+            const diffPct = ((dur / otherDur - 1) * 100).toFixed(0);
+            if (diffPct >= 30) diffHtml = ` <span class="diff-up">+${diffPct}%</span>`;
+            else if (diffPct <= -30) diffHtml = ` <span class="diff-down">${diffPct}%</span>`;
+          } else {
+            diffHtml = ' <span class="dist-only-badge">独有</span>';
+          }
+        }
+        html += `<td><div class="dist-bar-cell"><div class="dist-bar-wrap"><div class="dist-bar p${pi}" style="width:${pct}%;background:${catMeta.color}"></div></div><div class="dist-val">${hrs.toFixed(1)}h${diffHtml}</div></div></td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function buildDistSection(profiles, itemKey, icon, title, totalKey, colors, names) {
+  // Collect all unique item names across people
+  const allNames = new Set();
+  profiles.forEach(p => p[itemKey].forEach(i => allNames.add(i.name)));
+  const items = [...allNames];
+
+  // Get max duration for bar scaling
+  let maxDur = 0;
+  profiles.forEach(p => p[itemKey].forEach(i => { if (i.dur > maxDur) maxDur = i.dur; }));
+  if (maxDur === 0) maxDur = 1;
+
+  let html = `<div class="compare-section">`;
+  html += `<div class="compare-section-title"><span class="sec-icon">${icon}</span> ${title}</div>`;
+  html += `<table class="dist-table"><thead><tr><th>项目</th>`;
+  names.forEach((n,i) => html += `<th class="person-col" style="color:${colors[i]}">${n}</th>`);
+  html += '</tr></thead><tbody>';
+
+  items.forEach(name => {
+    const rowData = profiles.map(p => {
+      const found = p[itemKey].find(i => i.name === name);
+      return found ? found.dur : 0;
+    });
+    const maxInRow = Math.max(...rowData);
+    const totalInRow = rowData.reduce((a,b) => a+b, 0);
+    // Skip items where nobody has data
+    if (totalInRow === 0) return;
+
+    html += `<tr><td class="item-name" title="${name}">${name}</td>`;
+    profiles.forEach((p, pi) => {
+      const dur = rowData[pi];
+      const hrs = dur / 3600;
+      const pct = (dur / maxDur * 100).toFixed(1);
+      if (dur === 0) {
+        // Check if others have it
+        const othersHave = rowData.filter((v,i) => i !== pi && v > 0).length > 0;
+        html += othersHave
+          ? `<td style="text-align:center"><span class="dist-only-badge">未使用</span></td>`
+          : `<td style="text-align:center;color:#ccc">—</td>`;
+      } else {
+        // Show diff vs other person if 2 people
+        let diffHtml = '';
+        if (profiles.length === 2) {
+          const otherDur = rowData[1 - pi];
+          if (otherDur > 0) {
+            const diffPct = ((dur / otherDur - 1) * 100).toFixed(0);
+            if (diffPct >= 50) diffHtml = ` <span class="diff-up">+${diffPct}%</span>`;
+            else if (diffPct <= -50) diffHtml = ` <span class="diff-down">${diffPct}%</span>`;
+          } else {
+            diffHtml = ' <span class="dist-only-badge">独有</span>';
+          }
+        }
+        html += `<td><div class="dist-bar-cell"><div class="dist-bar-wrap"><div class="dist-bar p${pi}" style="width:${pct}%"></div></div><div class="dist-val">${hrs.toFixed(1)}h${diffHtml}</div></div></td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  return html;
+}
+
+function generateInsights(profiles, colors, names) {
+  const insights = [];
+
+  if (profiles.length !== 2) return insights;
+  const [a, b] = profiles;
+  const [na, nb] = names;
+
+  // 1. Activity hours diff
+  const hDiff = a.avgH - b.avgH;
+  if (Math.abs(hDiff) >= 1) {
+    const higher = hDiff > 0 ? na : nb;
+    const lower  = hDiff > 0 ? nb : na;
+    insights.push(`<strong>${higher}</strong> 日均活跃时长 ${Math.abs(hDiff).toFixed(1)}h 高于 <strong>${lower}</strong>（${higher}: ${Math.max(a.avgH,b.avgH).toFixed(1)}h vs ${lower}: ${Math.min(a.avgH,b.avgH).toFixed(1)}h）`);
+  }
+
+  // 2. Anomaly days diff
+  if (a.lowDays !== b.lowDays || a.highDays !== b.highDays) {
+    const worse = (a.lowDays + a.highDays) > (b.lowDays + b.highDays) ? na : nb;
+    const better = worse === na ? nb : na;
+    const wP = worse === na ? a : b;
+    const bP = worse === na ? b : a;
+    insights.push(`<strong>${worse}</strong> 异常天数较多（偏低${wP.lowDays}天 / 偏高${wP.highDays}天），<strong>${better}</strong> 相对稳定（偏低${bP.lowDays}天 / 偏高${bP.highDays}天）`);
+  }
+
+  // 3. Category distribution diff
+  const catA = a.categoryItems; const catB = b.categoryItems;
+  // Find category with biggest absolute hour diff
+  const catKeysMerged = new Set([...catA.map(c=>c.key), ...catB.map(c=>c.key)]);
+  let biggestCatDiff = { key:'', label:'', diff:0, hA:0, hB:0, color:'' };
+  catKeysMerged.forEach(key => {
+    const cA = catA.find(c => c.key === key);
+    const cB = catB.find(c => c.key === key);
+    const hA = cA ? cA.dur / 3600 : 0;
+    const hB = cB ? cB.dur / 3600 : 0;
+    const diff = Math.abs(hA - hB);
+    if (diff > biggestCatDiff.diff) {
+      const meta = CATEGORY_MAP.get(key) || { label:'其他', color:'#999' };
+      biggestCatDiff = { key, label: meta.label, diff, hA, hB, color: meta.color };
+    }
+  });
+  if (biggestCatDiff.diff >= 1) {
+    const d = biggestCatDiff;
+    const higher = d.hA >= d.hB ? na : nb;
+    const lower  = d.hA >= d.hB ? nb : na;
+    insights.push(`<strong style="color:${d.color}">${d.label}</strong> 耗时差异最大：${na} ${d.hA.toFixed(1)}h vs ${nb} ${d.hB.toFixed(1)}h（差距 ${d.diff.toFixed(1)}h，${higher} 更多）`);
+  }
+
+  // Find categories unique to one person
+  const onlyCatA = catA.filter(c => !catB.find(cc => cc.key === c.key)).map(c => c.label);
+  const onlyCatB = catB.filter(c => !catA.find(cc => cc.key === c.key)).map(c => c.label);
+  if (onlyCatA.length > 0) insights.push(`${na} 有而 ${nb} 无的工作类别：<strong>${onlyCatA.join('、')}</strong>`);
+  if (onlyCatB.length > 0) insights.push(`${nb} 有而 ${na} 无的工作类别：<strong>${onlyCatB.join('、')}</strong>`);
+
+  // 4. Browser top page diff (if both have browser)
+  const brA = a.categoryItems.find(c => c.key === 'browser');
+  const brB = b.categoryItems.find(c => c.key === 'browser');
+  if (brA && brB && brA.brItems.length > 0 && brB.brItems.length > 0) {
+    const topA = brA.brItems[0].name; const topB = brB.brItems[0].name;
+    if (topA !== topB) {
+      insights.push(`浏览器主要使用场景不同：${na} 最多访问「${topA}」，${nb} 最多访问「${topB}」`);
+    }
+  }
+
+  // 5. Doc top file diff (if both have office)
+  const docA = a.categoryItems.find(c => c.key === 'office');
+  const docB = b.categoryItems.find(c => c.key === 'office');
+  if (docA && docB && docA.docItems.length > 0 && docB.docItems.length > 0) {
+    const tdA = docA.docItems.slice(0, 3).map(i => i.name); const tdB = docB.docItems.slice(0, 3).map(i => i.name);
+    const onlyA = tdA.filter(n => !tdB.includes(n)); const onlyB = tdB.filter(n => !tdA.includes(n));
+    if (onlyA.length > 0) insights.push(`${na} 独占编辑的文档（前3）：${onlyA.join('、')}`);
+    if (onlyB.length > 0) insights.push(`${nb} 独占编辑的文档（前3）：${onlyB.join('、')}`);
+  }
+
+  return insights;
+}
+
+function renderCompareChart(profiles, colors, names) {
+  // Radar chart: compare 5 dimensions (normalized)
+  const dimensions = ['日均活跃', '总活跃时长', '偏低异常', '偏高异常', '工作类别数'];
+  const rawMatrix = profiles.map(p => [
+    p.avgH,
+    p.totalH,
+    p.lowDays,
+    p.highDays,
+    p.categoryItems.length
+  ]);
+
+  // Normalize each dimension to 0-100
+  const maxVals = dimensions.map((_, di) => Math.max(...rawMatrix.map(r => r[di])) || 1);
+  const normMatrix = rawMatrix.map(row => row.map((v, i) => +(v / maxVals[i] * 100).toFixed(1)));
+
+  const indicator = dimensions.map((d, i) => ({ name: d, max: 100 }));
+  const series = profiles.map((_, pi) => ({
+    value: normMatrix[pi],
+    name: names[pi],
+    lineStyle: { color: colors[pi], width: 2 },
+    itemStyle: { color: colors[pi] },
+    areaStyle: { color: colors[pi], opacity: 0.12 }
+  }));
+
+  chartCompare.setOption({
+    title: { text:'多维雷达对比', left:'center', top:4, textStyle:{fontSize:13,fontWeight:700,color:'#555'} },
+    tooltip: {
+      trigger:'item',
+      formatter: params => {
+        const vals = params.value.map((v,i) => `${dimensions[i]}: ${v}`).join('<br/>');
+        return `<strong>${params.name}</strong><br/>${vals}`;
+      }
+    },
+    legend: { data: names, bottom: 4, textStyle:{fontSize:12} },
+    radar: {
+      indicator,
+      center: ['50%','54%'],
+      radius: '62%',
+      axisName: { color:'#666', fontSize:11 },
+      splitArea: { areaStyle:{ color:['#FAFBFC','#F3F5F7','#ECEEF2','#E5E8ED','#DEE1E8'] } }
+    },
+    series: [{ type:'radar', data: series }]
+  }, true);
+  requestAnimationFrame(() => chartCompare.resize());
+}
+
+// ═══════════════════════════════════════════════
+//  MAIN VIEW SWITCHING
+// ═══════════════════════════════════════════════
+function switchMainView(view) {
+  currentMainView = view;
+  document.querySelectorAll('.main-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  document.getElementById('overviewView').style.display = view === 'overview' ? 'block' : 'none';
+  document.getElementById('deptView').style.display     = view === 'dept' ? 'block' : 'none';
+  document.getElementById('personView').style.display   = view === 'person' ? 'block' : 'none';
+
+  if (view === 'overview') {
+    renderOverviewView();
+    setTimeout(() => { chartOverviewPie.resize(); chartOverviewDeptBar.resize(); }, 60);
+  }
+  if (view === 'dept' && selectedDept) {
+    selectDept(selectedDept);
+    setTimeout(() => { chartDeptPie && chartDeptPie.resize(); chartDeptTrend && chartDeptTrend.resize(); }, 60);
+  }
+  if (view === 'person' && selectedLogin && !compareMode) {
+    updateAll();
+    setTimeout(() => chartSoftware.resize(), 60);
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  PERSON SUMMARY HELPER
+// ═══════════════════════════════════════════════
+function getPersonSummary(login) {
+  const data = getPersonData(login);
+  const dateMap = new Map();
+  data.forEach(r => {
+    if (!isWorkday(r._dateStr)) return;
+    dateMap.set(r._dateStr, (dateMap.get(r._dateStr) || 0) + r._duration);
+  });
+  const wdDates = [...dateMap.keys()].sort();
+  const wdHours = wdDates.map(d => dateMap.get(d) / 3600);
+  const avgH = wdHours.length ? wdHours.reduce((a,b) => a+b, 0) / wdHours.length : 0;
+  const totalH = data.reduce((s,r) => s + r._duration, 0) / 3600;
+  const lowDays = avgH > 0 ? wdHours.filter(h => h < avgH * 0.5).length : 0;
+  const highDays = avgH > 0 ? wdHours.filter(h => h > avgH * 1.5).length : 0;
+  return { login, avgH, totalH, wdDays: wdDates.length, lowDays, highDays, dailyMap: dateMap };
+}
+
+// ═══════════════════════════════════════════════
+//  OVERVIEW VIEW
+// ═══════════════════════════════════════════════
+function renderOverviewView() {
+  if (rawData.length === 0) return;
+
+  // Per-person summaries
+  const summaries = allPersons.map(p => {
+    const s = getPersonSummary(p.login);
+    s.name = p.name;
+    s.dept = p.dept;
+    return s;
+  });
+
+  // Stats
+  const totalH = summaries.reduce((s, p) => s + p.totalH, 0);
+  const avgH = summaries.length ? (summaries.reduce((s, p) => s + p.avgH, 0) / summaries.length) : 0;
+  const allWdDates = new Set();
+  rawData.forEach(r => { if (!r._noise && isWorkday(r._dateStr)) allWdDates.add(r._dateStr); });
+  const anomalyCount = summaries.filter(p => p.lowDays > 0 || p.highDays > 0).length;
+
+  document.getElementById('ovTotalH').innerHTML = `${totalH.toFixed(0)}<span class="stat-unit">h</span>`;
+  document.getElementById('ovAvgH').innerHTML = `${avgH.toFixed(1)}<span class="stat-unit">h</span>`;
+  document.getElementById('ovWorkDays').innerHTML = `${allWdDates.size}<span class="stat-unit">天</span>`;
+  document.getElementById('ovAnomalyCount').innerHTML = `${anomalyCount}<span class="stat-unit">人</span>`;
+
+  // Category distribution — sw-wrap layout (pie + rank list + expandable panels)
+  const allData = rawData.filter(r => !r._noise);
+  const categories = classifyByCategory(allData);
+  if (categories.length > 0) {
+    const pieData = categories.map(c => ({
+      name: `${c.icon} ${c.label}`, value: c.dur,
+      itemStyle: { color: c.color }
+    }));
+    chartOverviewPie.setOption({
+      tooltip: { trigger:'item', formatter: p => `${p.name}<br/>${(p.value/3600).toFixed(1)}h (${p.percent}%)` },
+      legend: { show:false },
+      series: [{
+        type:'pie', radius:['38%','70%'], center:['50%','50%'],
+        itemStyle: { borderRadius:4, borderColor:'#fff', borderWidth:2 },
+        label: { show:true, formatter: p => `${p.name}\n${p.percent}%`, fontSize:11, overflow:'truncate', ellipsis:'..', width:90, lineOverflow:'truncate' },
+        labelLine: { length:12, length2:8 },
+        labelLayout: { hideOverlap:true, moveOverlap:'shiftY' },
+        emphasis: { label:{ show:true, fontSize:13, fontWeight:'bold' } },
+        data: pieData
+      }]
+    }, true);
+    requestAnimationFrame(() => chartOverviewPie.resize());
+  }
+
+  // Render rank list + expandable panels for overview
+  renderCategoryPanels(categories, 'overviewRankList', 'overviewDetailPanels', 'ov');
+
+  // Dept avg daily hours bar chart
+  const deptPersonMap = new Map();
+  summaries.forEach(s => {
+    if (!deptPersonMap.has(s.dept)) deptPersonMap.set(s.dept, []);
+    deptPersonMap.get(s.dept).push(s);
+  });
+  const deptAvgData = [...deptPersonMap.entries()].map(([dept, persons]) => {
+    const deptAvg = persons.reduce((s, p) => s + p.avgH, 0) / persons.length;
+    const parts = dept.split('-');
+    const short = parts.length >= 3 ? parts.slice(1).join('-') : dept;
+    return { dept, short, avg: deptAvg, count: persons.length };
+  }).sort((a, b) => b.avg - a.avg);
+
+  chartOverviewDeptBar.setOption({
+    tooltip: { trigger:'axis', formatter: params => `${params[0].name}（${deptAvgData[params[0].dataIndex].count}人）<br/>人均日活: ${params[0].value.toFixed(1)}h` },
+    grid: { left: 150, right: 50, top: 10, bottom: 20 },
+    xAxis: { type:'value', axisLabel:{ formatter:'{value}h' }, splitLine:{ lineStyle:{ type:'dashed', color:'#E8ECF1' } } },
+    yAxis: {
+      type:'category', data: deptAvgData.map(d => d.short),
+      axisLabel: {
+        fontSize: 12, interval: 0,
+        // 长名称在 '-' 处换行，避免纵轴名称被截断
+        formatter: v => String(v).split('-')
+          .map(p => p.length > 10 ? p.match(/.{1,10}/g).join('\n') : p)
+          .join('-\n')
+      },
+      axisLine:{ show:false }, axisTick:{ show:false }
+    },
+    series: [{
+      type:'bar', data: deptAvgData.map(d => ({
+        value: +d.avg.toFixed(1),
+        itemStyle: { color: d.avg >= avgH ? '#4A90D9' : '#E74C3C', borderRadius:[0,4,4,0] }
+      })),
+      barMaxWidth: 22,
+      label: { show:true, position:'right', formatter:'{c}h', fontSize:11, color:'#666' }
+    }]
+  }, true);
+  // 部门多、名称换行后需要更高容器，动态调高保证标签不重叠
+  const deptBarEl = document.getElementById('chartOverviewDeptBar');
+  const needH = Math.max(360, deptAvgData.length * 26);
+  if (deptBarEl.clientHeight !== needH) {
+    deptBarEl.style.height = needH + 'px';
+    requestAnimationFrame(() => chartOverviewDeptBar.resize());
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  DEPT VIEW
+// ═══════════════════════════════════════════════
+function renderDeptTags() {
+  const deptMap = new Map();
+  allPersons.forEach(p => {
+    if (!deptMap.has(p.dept)) deptMap.set(p.dept, []);
+    deptMap.get(p.dept).push(p);
+  });
+  const c = document.getElementById('deptTags');
+  c.innerHTML = '';
+  [...deptMap.entries()].sort((a,b) => b[1].length - a[1].length).forEach(([dept, persons]) => {
+    const tag = document.createElement('div');
+    tag.className = 'person-tag';
+    tag.dataset.dept = dept;
+    const parts = dept.split('-');
+    const short = parts.length >= 3 ? parts.slice(1).join('-') : dept;
+    tag.innerHTML = `${short}<span class="dept-sub">${persons.length}人</span>`;
+    tag.onclick = () => selectDept(dept);
+    c.appendChild(tag);
+  });
+}
+
+function selectDept(dept) {
+  selectedDept = dept;
+  document.querySelectorAll('#deptTags .person-tag').forEach(t => {
+    t.classList.toggle('active', t.dataset.dept === dept);
+  });
+  renderDeptContent(dept);
+}
+
+function renderDeptContent(dept) {
+  const persons = allPersons.filter(p => p.dept === dept);
+  const deptData = rawData.filter(r => r._dept === dept && !r._noise);
+  const summaries = persons.map(p => {
+    const s = getPersonSummary(p.login);
+    s.name = p.name;
+    s.login = p.login;
+    return s;
+  });
+
+  const avgH = summaries.length ? summaries.reduce((s, p) => s + p.avgH, 0) / summaries.length : 0;
+  const totalH = deptData.reduce((s, r) => s + r._duration, 0) / 3600;
+  const lowCount = summaries.filter(p => p.lowDays > 0).length;
+  const highCount = summaries.filter(p => p.highDays > 0).length;
+  const parts = dept.split('-');
+  const short = parts.length >= 3 ? parts.slice(1).join('-') : dept;
+
+  // Data date range (from global)
+  const dates = [...new Set(rawData.map(r => r._dateStr))].sort();
+  const dateRangeStr = dates.length ? `${dates[0]} ~ ${dates[dates.length-1]}` : '—';
+
+  const container = document.getElementById('deptContent');
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div style="display:flex;background:linear-gradient(90deg,#EBF3FB 0%,#F5F8FC 100%);border-left:4px solid var(--primary);border-radius:8px;padding:10px 20px;margin-bottom:16px;align-items:center;gap:12px;font-size:13px;color:var(--text-muted);box-shadow:0 1px 4px rgba(74,144,217,0.08)">
+      <span style="font-size:15px;font-weight:700;color:var(--primary-dark)">🏢 ${short}</span>
+      <span style="color:#C5D6E6;font-size:16px">|</span>
+      <span>👥 ${persons.length} 人</span>
+      <span style="color:#C5D6E6;font-size:16px">|</span>
+      <span>📅 ${dateRangeStr}</span>
+    </div>
+    <div class="activity-stats" style="margin-bottom:18px">
+      <div class="stat-item"><div class="stat-label">人均日活跃时长</div><div class="stat-value">${avgH.toFixed(1)}<span class="stat-unit">h</span></div></div>
+      <div class="stat-item success"><div class="stat-label">部门总活跃时长</div><div class="stat-value">${totalH.toFixed(0)}<span class="stat-unit">h</span></div></div>
+      <div class="stat-item danger"><div class="stat-label">偏低异常人数</div><div class="stat-value">${lowCount}<span class="stat-unit">人</span></div></div>
+      <div class="stat-item warning"><div class="stat-label">偏高异常人数</div><div class="stat-value">${highCount}<span class="stat-unit">人</span></div></div>
+    </div>
+    <div class="chart-card" style="margin-bottom:18px">
+      <div class="chart-header"><div class="chart-title">📊 部门工作性质分布</div></div>
+      <div class="sw-wrap">
+        <div class="sw-chart" id="chartDeptPie"></div>
+        <div class="sw-rank" id="deptRankList"></div>
+      </div>
+      <div id="deptDetailPanels" style="margin-top:14px"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><div class="chart-title">📈 工作日活跃趋势（部门汇总）</div></div>
+      <div id="chartDeptTrend" style="height:340px"></div>
+    </div>`;
+
+  // Re-init charts after innerHTML replacement
+  chartDeptPie = echarts.init(document.getElementById('chartDeptPie'));
+  chartDeptTrend = echarts.init(document.getElementById('chartDeptTrend'));
+
+  // Category pie + rank list + expandable panels
+  const categories = classifyByCategory(deptData);
+  if (categories.length > 0) {
+    const pieData = categories.map(c => ({
+      name: `${c.icon} ${c.label}`, value: c.dur,
+      itemStyle: { color: c.color }
+    }));
+    chartDeptPie.setOption({
+      tooltip: { trigger:'item', formatter: p => `${p.name}<br/>${(p.value/3600).toFixed(1)}h (${p.percent}%)` },
+      legend: { show:false },
+      series: [{
+        type:'pie', radius:['38%','70%'], center:['50%','50%'],
+        itemStyle: { borderRadius:4, borderColor:'#fff', borderWidth:2 },
+        label: { show:true, formatter: p => `${p.name}\n${p.percent}%`, fontSize:11, overflow:'truncate', ellipsis:'..', width:90, lineOverflow:'truncate' },
+        labelLine: { length:12, length2:8 },
+        labelLayout: { hideOverlap:true, moveOverlap:'shiftY' },
+        emphasis: { label:{ show:true, fontSize:13, fontWeight:'bold' } },
+        data: pieData
+      }]
+    }, true);
+    requestAnimationFrame(() => chartDeptPie.resize());
+  }
+
+  // Render rank list + expandable panels for dept
+  renderCategoryPanels(categories, 'deptRankList', 'deptDetailPanels', 'dept_' + dept.replace(/[^a-zA-Z0-9]/g, '_'));
+
+  // Dept aggregate workday trend (area chart, total hours per workday)
+  const wdDailyMap = new Map();
+  deptData.forEach(r => {
+    if (!isWorkday(r._dateStr)) return;
+    wdDailyMap.set(r._dateStr, (wdDailyMap.get(r._dateStr) || 0) + r._duration);
+  });
+  const wdDates = [...wdDailyMap.keys()].sort();
+  const wdValues = wdDates.map(d => +(wdDailyMap.get(d) / 3600).toFixed(2));
+
+  chartDeptTrend.setOption({
+    tooltip: {
+      trigger:'axis',
+      formatter: params => `${params[0].axisValue}<br/>部门总活跃: ${params[0].value}h`
+    },
+    grid: { left:50, right:20, top:40, bottom:30 },
+    xAxis: { type:'category', data: wdDates, axisLabel:{ fontSize:10, rotate: wdDates.length > 15 ? 45 : 0 } },
+    yAxis: { type:'value', name:'h', axisLabel:{ fontSize:11 }, splitLine:{ lineStyle:{ type:'dashed', color:'#E8ECF1' } } },
+    series: [{
+      type:'line', data: wdValues, smooth:true, symbol:'circle', symbolSize:6,
+      lineStyle: { width:2.5, color:'#4A90D9' },
+      itemStyle: { color:'#4A90D9' },
+      areaStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset:0, color:'rgba(74,144,217,0.28)' },
+          { offset:1, color:'rgba(74,144,217,0.02)' }
+        ])
+      },
+      markLine: {
+        silent:true,
+        data: [{ type:'average', name:'均值' }],
+        lineStyle: { color:'#E74C3C', type:'dashed', width:1.5 },
+        label: { formatter:'均值 {c}h', fontSize:11, color:'#E74C3C' }
+      }
+    }]
+  }, true);
+}
+
+function jumpToPerson(login) {
+  selectedLogin = login;
+  switchMainView('person');
+  setTimeout(() => {
+    document.querySelectorAll('#personTags .person-tag').forEach(t => {
+      t.classList.toggle('active', t.dataset.login === login);
+    });
+    switchMode('single');
+    updateAll();
+    setTimeout(() => chartSoftware.resize(), 60);
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════
+//  EXPORT ALL
+// ═══════════════════════════════════════════════
+function aggregateForExport(login) {
+  const data   = getPersonData(login);
+  const person = allPersons.find(p => p.login === login);
+
+  // Daily (workdays only)
+  const dateMap = new Map();
+  data.forEach(r => {
+    if (!isWorkday(r._dateStr)) return;
+    dateMap.set(r._dateStr, (dateMap.get(r._dateStr)||0) + r._duration);
+  });
+  const wdDates = [...dateMap.keys()].sort();
+  const wdHours = wdDates.map(d => dateMap.get(d)/3600);
+  const avgH    = wdHours.length ? wdHours.reduce((a,b)=>a+b,0)/wdHours.length : 0;
+  const totalH  = data.reduce((s,r)=>s+r._duration,0)/3600;
+
+  const dailyRows = wdDates.map((d,i) => {
+    const h    = wdHours[i];
+    let type   = '';
+    if (h < avgH*0.5)  type = '偏低';
+    else if (h > avgH*1.5) type = '偏高';
+    const pct  = avgH>0 ? ((h/avgH-1)*100).toFixed(1)+'%' : '-';
+    return [d, getWeekdayCN(d), +h.toFixed(2), pct, type];
+  });
+
+  // Software
+  const swMap = new Map();
+  data.forEach(r => swMap.set(r._process, (swMap.get(r._process)||0)+r._duration));
+  const swTotal = [...swMap.values()].reduce((s,v)=>s+v,0);
+  const swRows  = [...swMap.entries()].sort((a,b)=>b[1]-a[1])
+    .map(([name,dur]) => [name, dur, +(dur/3600).toFixed(1), +(dur/swTotal*100).toFixed(1)+'%']);
+
+  // Documents
+  const docMap  = buildDocData(data);
+  const docRows = [...docMap.entries()].sort((a,b)=>b[1].duration-a[1].duration)
+    .map(([name,v]) => [name, v.duration, +(v.duration/3600).toFixed(1), v.count]);
+
+  // Browser
+  const brMap   = buildBrowserData(data);
+  const brRows  = [...brMap.entries()].sort((a,b)=>b[1].duration-a[1].duration)
+    .map(([name,v]) => [name, v.duration, +(v.duration/3600).toFixed(1), v.count]);
+
+  return { person, totalH, avgH, dailyRows, swRows, docRows, brRows };
+}
+
+function exportAll() {
+  showLoading('正在生成全员报告...');
+  setTimeout(() => {
+    try {
+      const wb = XLSX.utils.book_new();
+      allPersons.forEach(p => {
+        const agg  = aggregateForExport(p.login);
+        const name = p.name.substring(0, 31);
+        const aoa  = [];
+
+        aoa.push(['日志活动分析报告 - ' + name]);
+        aoa.push([]);
+        aoa.push(['基本信息']);
+        aoa.push(['姓名', agg.person.name]);
+        aoa.push(['部门', agg.person.dept]);
+        aoa.push(['总活跃时长(h)', +agg.totalH.toFixed(1)]);
+        aoa.push(['工作日日均活跃时长(h)', +agg.avgH.toFixed(1)]);
+        aoa.push([]);
+
+        aoa.push(['每日活跃时长（仅工作日）']);
+        aoa.push(['日期','星期','时长(h)','偏差','异常类型']);
+        agg.dailyRows.forEach(r => aoa.push(r));
+        aoa.push([]);
+
+        aoa.push(['软件使用汇总']);
+        aoa.push(['软件名','总耗时(秒)','总耗时(小时)','占比']);
+        agg.swRows.forEach(r => aoa.push(r));
+        aoa.push([]);
+
+        aoa.push(['文档文件统计']);
+        aoa.push(['文件名','总耗时(秒)','总耗时(小时)','打开次数']);
+        agg.docRows.forEach(r => aoa.push(r));
+        aoa.push([]);
+
+        aoa.push(['浏览器使用统计']);
+        aoa.push(['网页/标题','总耗时(秒)','总耗时(小时)','访问次数']);
+        agg.brRows.forEach(r => aoa.push(r));
+
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{wch:32},{wch:10},{wch:14},{wch:10},{wch:12}];
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      });
+
+      const now = new Date();
+      const fn  = `日志活动分析报告_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.xlsx`;
+      XLSX.writeFile(wb, fn);
+      hideLoading();
+    } catch(err) {
+      hideLoading();
+      alert('导出失败：' + err.message);
+    }
+  }, 80);
+}
+</script>
+<script src="sample-data.js"></script>
+<script>function loadDemo(){rawData=window.DEMO_LOGS.map(row=>({...row}));processData();} loadDemo();</script>
+</body>
+</html>

@@ -11,3 +11,7 @@ venv/
 .pytest_cache/
 .coverage
 htmlcov/
+node_modules/
+dist/
+test-results/
+playwright-report/

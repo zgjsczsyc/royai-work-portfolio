@@ -1,0 +1,7 @@
+{
+  "name": "royai-work-portfolio",
+  "private": true,
+  "type": "module",
+  "scripts": {"test:showcase": "node tests/showcase.mjs"},
+  "devDependencies": {"playwright": "1.62.1"}
+}

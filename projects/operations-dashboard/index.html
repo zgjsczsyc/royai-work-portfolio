@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><link rel="icon" href="data:,">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 平台 · 运营数据看板（管理后台版）</title>
+<script src="vendor/echarts.min.js"></script>
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+<div class="topbar">
+  <div class="in">
+    <h1>AI 平台 · 运营数据看板<span>作品集演示 · 全部数据为合成</span></h1>
+    <div class="filters">
+      <div class="seg" id="segRange">
+        <button data-r="7">近7天</button>
+        <button data-r="30" class="active">近30天</button>
+        <button data-r="60">近60天</button>
+        <button data-r="all">全部</button>
+      </div>
+      <div class="seg" id="segCh">
+        <button data-c="all" class="active">全部渠道</button>
+        <button data-c="web">真人Web</button>
+        <button data-c="de">数字员工</button>
+      </div>
+      <div class="rangeLbl" id="rangeLbl">--</div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- KPI -->
+  <section id="kpi">
+    <div class="row">
+      <div class="card span2">
+        <div class="kpi-label">访问量 PV</div>
+        <div class="kpi-num blue" id="kPv">--</div>
+        <div class="kpi-sub">日均 <b id="kPvAvg">--</b><span class="delta" id="kPvDelta"></span></div>
+      </div>
+      <div class="card span2">
+        <div class="kpi-label">活跃用户</div>
+        <div class="kpi-num" id="kUsers">--</div>
+        <div class="kpi-sub">新增 <b id="kNew">--</b><span class="delta" id="kUsersDelta"></span></div>
+      </div>
+      <div class="card span2">
+        <div class="kpi-label">人均 PV</div>
+        <div class="kpi-num" id="kPpu">--</div>
+        <div class="kpi-sub">人均活跃 <b id="kDays">--</b> 天</div>
+      </div>
+      <div class="card span2">
+        <div class="kpi-label">覆盖部门</div>
+        <div class="kpi-num" id="kDepts">--</div>
+        <div class="kpi-sub">一级部门 · 共 <b id="kDeptsAll">--</b> 个</div>
+      </div>
+      <div class="card span2">
+        <div class="kpi-label">数字员工 PV 占比</div>
+        <div class="kpi-num purple" id="kDePct">--</div>
+        <div class="kpi-sub">数字员工 <b id="kDePv">--</b> PV</div>
+      </div>
+      <div class="card span2">
+        <div class="kpi-label">工作日/周末日均 PV</div>
+        <div class="kpi-num green" id="kWk">--</div>
+        <div class="kpi-sub">周末 <b id="kWe">--</b>（<b id="kWeRatio">--</b>）</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 趋势 -->
+  <section id="trend">
+    <div class="sec-head"><h2>趋势分析</h2><p id="trendSub">--</p></div>
+    <div class="row">
+      <div class="card span8">
+        <div class="card-head"><h3>日 PV & 活跃人数</h3><span class="tag blue" id="trendTag">--</span></div>
+        <div id="chartTrend" class="chart tall"></div>
+      </div>
+      <div class="card span4">
+        <div class="card-head"><h3>新增 vs 回访用户</h3><span class="tag">按日</span></div>
+        <div id="chartNewRet" class="chart tall"></div>
+        <div class="insight" id="insNew">--</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="card span12">
+        <div class="card-head"><h3>渠道结构（真人Web vs 数字员工）</h3><span class="tag purple" id="chTag">--</span></div>
+        <div id="chartChannel" class="chart"></div>
+        <div class="insight purple" id="insChannel">--</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 部门 -->
+  <section id="dept">
+    <div class="sec-head"><h2>部门渗透</h2><p>按当前筛选范围实时计算</p></div>
+    <div class="row">
+      <div class="card span5">
+        <div class="card-head"><h3>一级部门 PV Top 12</h3><span class="tag blue">柱=PV</span></div>
+        <div id="chartDept" class="chart tall"></div>
+      </div>
+      <div class="card span7">
+        <div class="card-head"><h3>部门明细</h3><span class="tag">按 PV 降序</span></div>
+        <div style="max-height:320px; overflow-y:auto;">
+          <table id="tblDept">
+            <thead><tr>
+              <th>一级部门</th><th class="num">PV</th><th class="num">活跃</th><th class="num">新增</th>
+              <th class="num">人均PV</th><th class="num">数字员工PV</th><th class="num">PV占比</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="insight" id="insDept">--</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 用户 -->
+  <section id="user">
+    <div class="sec-head"><h2>用户活跃分层</h2><p id="layerSub">--</p></div>
+    <div class="row">
+      <div class="card span5">
+        <div class="card-head"><h3>分层人数 & PV</h3><span class="tag" id="layerTag">--</span></div>
+        <div id="chartLayer" class="chart tall"></div>
+        <div class="insight" id="insLayer">--</div>
+      </div>
+      <div class="card span7">
+        <div class="card-head"><h3>活跃用户 Top 20</h3><span class="tag purple">紫底=数字员工调用</span></div>
+        <div style="max-height:320px; overflow-y:auto;">
+          <table id="tblTop">
+            <thead><tr>
+              <th>#</th><th>工号</th><th>姓名</th><th>一级部门</th>
+              <th class="num">活跃天</th><th class="num">PV</th><th class="num">数字员工PV</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 数字员工 -->
+  <section id="de">
+    <div class="sec-head"><h2>数字员工调用</h2><p id="deSub">--</p></div>
+    <div class="row">
+      <div class="card span3">
+        <div class="kpi-label">数字员工 PV</div>
+        <div class="kpi-num purple" id="dPv">--</div>
+        <div class="kpi-sub">占总 PV <b id="dPct">--</b></div>
+      </div>
+      <div class="card span3">
+        <div class="kpi-label">调用用户</div>
+        <div class="kpi-num" id="dUsers">--</div>
+        <div class="kpi-sub">仅数字员工 <b id="dOnly">--</b> 人</div>
+      </div>
+      <div class="card span3">
+        <div class="kpi-label">人均 PV（vs Web）</div>
+        <div class="kpi-num blue" id="dPpu">--</div>
+        <div class="kpi-sub">Web 人均 <b id="dWebPpu">--</b></div>
+      </div>
+      <div class="card span3">
+        <div class="kpi-label">环比（后半程 vs 前半程）</div>
+        <div class="kpi-num green" id="dWow">--</div>
+        <div class="kpi-sub"><b id="dHalf2">--</b> vs <b id="dHalf1">--</b></div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="card span7">
+        <div class="card-head"><h3>数字员工日调用趋势</h3><span class="tag purple">柱=PV / 线=人数</span></div>
+        <div id="chartDeDaily" class="chart"></div>
+      </div>
+      <div class="card span5">
+        <div class="card-head"><h3>数字员工部门渗透 Top 10</h3><span class="tag">标签=占该部门PV</span></div>
+        <div id="chartDeDept" class="chart"></div>
+        <div class="insight purple" id="insDe">--</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <b>数据说明</b><br>
+    · 数据源：固定种子生成的虚构访问事件，2026-08-01 至 2026-10-29，共 90 天；不包含真实用户或企业运营数据。<br>
+    · 渠道口径：Web 与数字员工两类合成访问；数字员工从样本第 30 天开始。<br>
+    · 筛选说明：时间范围以数据末日为基准回溯；"新增用户"=该渠道首次使用落在所选范围内；分层阈值随范围长度自适应（高频≥25% 天数 / 中频≥12% / 低频2天 / 试用1天）<br>
+    · 环比口径：与所选范围等长的前一窗口对比；前一窗口不足时不显示<br>
+    · 本页面为管理后台看板原型：单文件 HTML、独立合成数据文件、筛选实时重算，可离线查看；接入后台时以同口径接口替换内嵌数据即可
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
