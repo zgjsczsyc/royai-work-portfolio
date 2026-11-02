@@ -20,8 +20,27 @@ const screenshot=async(name)=>{
 };
 try{
   await page.goto('http://127.0.0.1:8765');
-  check('作品集入口包含四个网页项目',await page.locator('.grid a').count()===4);
+  check('作品集入口包含五个本地网页项目',await page.locator('.grid a[href^="http://127.0.0.1:"]').count()===5);
   check('私有仓库入口先登录',await page.locator('nav a').getAttribute('href')==='https://github.com/login?return_to=%2Fzgjsczsyc%2Froyai-work-portfolio');
+  const radar=page.locator('[data-project="fc-social-radar"]');
+  check('FC 卡片标明原型和人工验收状态',(await radar.innerText()).includes('人工质量验收待完成'));
+  check('FC 真实快照链接指向独立站点',await radar.getByRole('link',{name:'查看真实采集快照 ↗'}).getAttribute('href')==='https://zgjsczsyc.github.io/fc-social-radar-snapshot/');
+  const radarUrl=await radar.getByRole('link',{name:'打开合成演示 →'}).getAttribute('href');
+  await page.setViewportSize({width:390,height:844});
+  check('作品集移动端无横向溢出',await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.setViewportSize({width:1440,height:1000});
+  await page.goto(radarUrl);
+  await page.waitForFunction(()=>document.querySelectorAll('.focus-item').length===3);
+  const radarState=await (await page.request.get(radarUrl+'/api/state?mode=real')).json();
+  check('作品集 FC 入口仅使用合成样本',radarState.mode==='demo'&&radarState.analysis.posts.length===60&&radarState.analysis.posts.every(p=>p.method==='synthetic'));
+  check('合成示例不计入真实采集验收',Object.values(radarState.verifiedRuns).every(n=>n===0));
+  check('FC 合成看板显示 12 个事件及演示标签',radarState.analysis.events.length===12&&await page.locator('.mode-badge').innerText()==='合成演示');
+  await screenshot('fc-social-listening');
+  await page.getByRole('button',{name:'事件中心'}).click();
+  await page.getByRole('tab',{name:'热门新游',exact:true}).click();
+  check('作品集可进入 FC 新游视角',await page.locator('.event-row').count()===3);
+  await page.getByRole('tab',{name:'电竞赛事',exact:true}).click();
+  check('作品集可进入 FC 电竞视角',await page.locator('.event-row').count()===3);
 
   await page.goto('http://127.0.0.1:8766');
   await page.waitForFunction(()=>document.querySelector('#personCount').textContent.includes('8'));

@@ -6,6 +6,7 @@
 
 | 项目 | 展示能力 | 当前状态 |
 | --- | --- | --- |
+| [FC Social Radar · 游戏舆情观察](projects/fc-social-listening/) | 社交平台采集、事件聚合、样本热度、FC 关联与影响判断、证据追溯及中文简报 | 可运行原型；[真实采集快照已发布](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)，人工质量验收待完成，非 EA 官方产品 |
 | [企业审批辅助助手](projects/approval-assistant/) | Dify、OA/BPM 系统适配、规则与字段管理、材料核对、模拟写回 | 本地代码与 Mock 回归测试通过；Dify 实机及模型验证待完成 |
 | [日志活动分析](projects/log-analysis/) | 软件分类、部门与人员视角、浏览器端数据分析 | 独立看板，默认合成日志 |
 | [AI 平台运营看板](projects/operations-dashboard/) | 时间与渠道筛选、用户分层、运营指标口径 | 原有聚合逻辑，替换为合成数据 |
@@ -20,7 +21,7 @@ GitHub 会向未登录或无权限的浏览器隐藏私有仓库。**先在浏�
 
 仓库继续保持私有，不需要为了消除 404 改成公开。
 
-## 本地展示四个网页项目
+## 本地展示五个网页项目
 
 本机已完成前端构建，可在仓库根目录直接执行：
 
@@ -30,7 +31,9 @@ python3 serve.py
 
 浏览器打开 `http://127.0.0.1:8765`，选择项目；Ctrl+C 停止全部服务。所有服务仅监听本机，页面运行无需企业登录或模型密钥。
 
-首次在另一台电脑克隆后，需先安装 Node.js 20.19+ 或 22.12+，分别进入 `projects/home-model`、`projects/notification-center` 执行 `npm ci` 与 `npm run build`，再回到根目录启动展示。构建产物和依赖目录不上传 GitHub。
+首次在另一台电脑克隆后，需先安装 Node.js 24+，分别进入 `projects/home-model`、`projects/notification-center`、`projects/fc-social-listening` 执行 `npm ci` 与 `npm run build`，再回到根目录启动展示。构建产物和依赖目录不上传 GitHub。
+
+FC Social Radar 的本地入口为 `http://127.0.0.1:8772`，使用内存中的 60 条合成帖子和 12 个事件，退出后丢弃，不打开真实数据库或登录会话。公开的[真实采集快照](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)为独立只读页面，保留待核实与覆盖缺口。设计取舍、实测结果和限制见[项目案例](projects/fc-social-listening/docs/portfolio-case-study.md)。
 
 浏览器验收脚本需要本机 Chrome：根目录运行 `npm ci`，启动展示服务后执行 `npm run test:showcase`。测试截图保存在各项目的 `preview.png`，测试日志在被 Git 忽略的 `test-results/`。
 

@@ -1,0 +1,31 @@
+{
+  "name": "fc-social-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vue-tsc --noEmit && vite build",
+    "start": "node server.mjs --mode real",
+    "demo": "node cli.mjs seed-demo && node server.mjs --mode demo",
+    "radar": "node cli.mjs",
+    "share": "node share.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser.mjs"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "playwright": "1.62.1",
+    "vue": "^3.5.18"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "typescript": "~5.8.0",
+    "vite": "^7.1.0",
+    "vue-tsc": "^3.0.4"
+  }
+}

@@ -3,6 +3,8 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import threading
+import shutil
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 SITES = [
@@ -15,17 +17,27 @@ SITES = [
 
 
 def main():
-    for _, relative in SITES:
+    for relative in [relative for _, relative in SITES] + ['projects/fc-social-listening/dist']:
         if not (ROOT / relative / 'index.html').is_file():
             project = relative.removesuffix('/dist')
             raise SystemExit(f'缺少构建文件：{relative}\n请先进入 {project}，执行 npm ci 和 npm run build。')
+    node = shutil.which('node')
+    if not node or int(subprocess.check_output([node, '--version'], text=True).strip().lstrip('v').split('.')[0]) < 24:
+        raise SystemExit('FC Social Radar 需要 Node.js 24+，请先安装后重试。')
     servers = []
+    radar = None
     try:
         for port, relative in SITES:
             handler = partial(SimpleHTTPRequestHandler, directory=str(ROOT / relative))
             server = ThreadingHTTPServer(('127.0.0.1', port), handler)
             servers.append(server)
             threading.Thread(target=server.serve_forever, daemon=True).start()
+        radar = subprocess.Popen([node, 'portfolio.mjs'], cwd=ROOT / 'projects/fc-social-listening', stdout=subprocess.PIPE, text=True)
+        ready = radar.stdout.readline().strip()
+        radar.stdout.close()
+        if not ready:
+            raise SystemExit('FC Social Radar 合成演示未启动，请检查上方错误及本机 8772 端口。')
+        print(ready, flush=True)
         print('作品集入口：http://127.0.0.1:8765\nCtrl+C 停止全部展示服务。', flush=True)
         threading.Event().wait()
     except OSError as error:
@@ -33,6 +45,13 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        if radar is not None and radar.poll() is None:
+            radar.terminate()
+            try:
+                radar.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                radar.kill()
+                radar.wait()
         for server in servers:
             server.shutdown()
             server.server_close()
