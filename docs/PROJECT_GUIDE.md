@@ -10,7 +10,7 @@
 
 **展示产物**：工作流 DSL、示例规则、本地 Mock、设计说明和异常回归测试。用户已确认内置数据版在 Dify Cloud 可运行；接口集成版由本地 Mock 验证。逐场景云端运行记录和模型质量评测仍需补齐。
 
-[案例说明](../projects/approval-assistant/docs/case-study.md) · [工作流与启动方法](../projects/approval-assistant/README.md) · [验证边界](../projects/approval-assistant/docs/validation.md)
+[在线体验](https://udify.app/chat/oQZ7k3O8Q6O0aGPU) · [案例说明](../projects/approval-assistant/docs/case-study.md) · [工作流与启动方法](../projects/approval-assistant/README.md) · [验证边界](../projects/approval-assistant/docs/validation.md)
 
 ## 2. AI 平台运营：从指标观察到进一步研究
 

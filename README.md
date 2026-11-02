@@ -19,11 +19,12 @@
 
 ## 无需安装即可查看
 
+- [在线体验审批辅助助手](https://udify.app/chat/oQZ7k3O8Q6O0aGPU)：使用虚构请假/采购样本，当前无需登录工作区。
 - [审批辅助案例](projects/approval-assistant/docs/case-study.md)：工作流设计、异常处理与测试范围。
 - [平台运营截图](projects/operations-dashboard/preview.png)与[通知交互截图](projects/notification-center/preview.png)：从指标观察到后台任务反馈。
 - [舆情观察案例](projects/fc-social-listening/docs/portfolio-case-study.md)与[在线只读快照](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)：证据追溯、判断依据与覆盖缺口。
 
-本仓库中的 `127.0.0.1` 地址用于在访问者自己的电脑上启动演示，不是线上托管地址。除明确标注的舆情快照外，网页项目需按下方步骤在本地运行。
+本仓库中的 `127.0.0.1` 地址用于在访问者自己的电脑上启动演示，不是线上托管地址。除审批辅助在线应用与舆情快照外，其余网页项目需按下方步骤在本地运行。
 
 ## 本地展示五个网页项目
 
@@ -51,9 +52,9 @@ FC Social Radar 的本地入口为 `http://127.0.0.1:8772`，使用内存中的 
 
 浏览器验收脚本需要本机 Chrome：根目录运行 `npm ci`，启动展示服务后执行 `npm run test:showcase`。测试截图保存在各项目的 `preview.png`，测试日志在被 Git 忽略的 `test-results/`。
 
-## 在本机演示审批辅助链路
+## 审批辅助：在线体验与本地复现
 
-云端演示应用为[【正式demo】企业审批辅助助手](https://cloud.dify.ai/app/1b7a27d9-da8d-4759-af07-a643ed14c41a/workflow)。此链接打开 Dify 工作流编辑页，需要登录并拥有对应工作区权限。
+[打开已发布的审批辅助助手](https://udify.app/chat/oQZ7k3O8Q6O0aGPU)。当前已通过未登录浏览器访问验证，无需工作区编辑权限。填写 `10086 / OA / LEAVE` 或 `20099 / BPM / PURCHASE`，开始对话后发送“请整理本次流程的核对要点”。
 
 在自己的 Dify 工作区复现时，导入 [workflow-cloud.yml](projects/approval-assistant/workflow-cloud.yml)，并在两个 LLM 节点配置可用模型。该版本内置虚构数据，无需启动本地服务；采购回调只展示说明，不保存或写回。操作步骤见[项目说明](projects/approval-assistant/README.md#dify-官方云端使用内置数据版)。
 
