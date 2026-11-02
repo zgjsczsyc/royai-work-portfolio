@@ -20,8 +20,8 @@ const screenshot=async(name)=>{
 };
 try{
   await page.goto('http://127.0.0.1:8765');
-  check('作品集入口包含五个本地网页项目',await page.locator('.grid a[href^="http://127.0.0.1:"]').count()===5);
-  check('私有仓库入口先登录',await page.locator('nav a').getAttribute('href')==='https://github.com/login?return_to=%2Fzgjsczsyc%2Froyai-work-portfolio');
+  check('作品集入口包含四个网页项目与 FC 合成演示',await page.locator('.grid a[href^="http://127.0.0.1:"]').count()===5);
+  check('作品集入口指向源码仓库',await page.locator('nav a').first().getAttribute('href')==='https://github.com/zgjsczsyc/royai-work-portfolio');
   const radar=page.locator('[data-project="fc-social-radar"]');
   check('FC 卡片标明原型和人工验收状态',(await radar.innerText()).includes('人工质量验收待完成'));
   check('FC 真实快照链接指向独立站点',await radar.getByRole('link',{name:'查看真实采集快照 ↗'}).getAttribute('href')==='https://zgjsczsyc.github.io/fc-social-radar-snapshot/');

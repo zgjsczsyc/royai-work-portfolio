@@ -2,7 +2,7 @@
 
 面向 FC Mobile／足球世界中文市场的本地舆情工作台。监测 B站、微博、小红书，关注 FC 玩家反馈、竞品、足球热点、热门新游、电竞赛事与行业变化。
 
-**真实采集与合成演示独立运行。三平台已各完成至少两次有样本的真实采集，仍有字段和检索覆盖缺口；已按用户要求以可运行原型加入 portfolio，人工质量验收待完成。** 实际验证记录见 [VALIDATION.md](VALIDATION.md)。本项目不是 EA 官方产品。
+**项目状态：可运行原型。** 真实采集与合成演示独立运行。三平台已各完成至少两次有样本的真实采集，仍有字段和检索覆盖缺口，独立人工质量验收待完成。实际验证记录见 [VALIDATION.md](VALIDATION.md)。本项目不是 EA 官方产品。
 
 [查看项目案例](docs/portfolio-case-study.md) · [打开真实采集快照](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)
 
@@ -15,7 +15,8 @@
 需要 Node.js 24+ 和本机 Google Chrome；不需要单独模型 API 密钥。SQLite 使用 Node 内置模块，在 Node 24 中会提示实验性警告。
 
 ```bash
-cd /Users/royshen/Documents/roy-ai-portfolio/projects/fc-social-listening
+# 从作品集仓库根目录进入
+cd projects/fc-social-listening
 npm ci
 npm run build
 npm run demo
@@ -111,14 +112,16 @@ npm run radar -- evaluate-review --file /绝对路径/human-review.json
 
 人工验收需要至少 60 条真实样本，覆盖三平台，新游与电竞各至少 10 条；产品识别 ≥90%，主要分类 ≥80%，误合并率 ≤10%。误合并率采用被预测为同一事件的已复核样本对中，人工事件不同的比例。测试程序中的合成参考答案不等于人工评估。
 
-已按用户明确要求以可运行原型加入作品集，设计与实测记录见 [portfolio-case-study.md](docs/portfolio-case-study.md)。作品集注册不替代人工质量验收，不宣称 EA 已使用或取得业务收益。
+设计与实测记录见 [portfolio-case-study.md](docs/portfolio-case-study.md)。本项目以可运行原型展示，人工质量验收待完成，不宣称 EA 已使用或取得业务收益。
 
 ## 给同事分享真实快照
 
-已发布：[FC Social Radar 真实采集快照](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)。这是公开可访问的只读站点，保留待核实与覆盖缺口；原作品集仓库保持私有。
+已发布：[FC Social Radar 真实采集快照](https://zgjsczsyc.github.io/fc-social-radar-snapshot/)。这是独立托管的公开只读站点，保留待核实与覆盖缺口，与源码仓库的可见性设置无关。
 
 用户明确授权后，运行 `npm run share`。输出位于仓库外的真实数据目录 `real/share/<生成时间>/`，路径记录在 `real/share/latest.txt`。只上传该生成目录中的静态站点文件，不上传整个真实数据目录或私有源码仓库。
 
-分享版保留事件、已引用摘录、平台原文链接、评分、待核实标记、覆盖失败和排除数量；不包含作者信息、评论、未引用帖子、数据库、浏览器登录会话或本机技术诊断。页面与 Markdown/HTML 简报标注数据截至时间、快照生成时间及非 EA 官方产品。时间筛选固定在采集窗口，不会随日历推移自动隐藏快照内容。
+分享版保留事件、已引用摘录、平台原文链接、评分、待核实标记、覆盖失败和排除数量；不包含独立的作者姓名/账号字段、评论正文、未引用帖子、数据库、浏览器登录会话或本机技术诊断；原文链接可能包含平台账号标识，仍可回溯到公开发布者。页面与 Markdown/HTML 简报标注数据截至时间、快照生成时间及非 EA 官方产品。时间筛选固定在采集窗口，不会随日历推移自动隐藏快照内容。
 
 `node tests/share-browser.mjs` 在子路径下验证静态站点，使用真实快照，不启动采集。发布后设置 `FC_RADAR_SHARE_URL` 为完整的 HTTPS 网站地址（以 `/` 结尾），运行相同脚本检查线上页面。快照无登录或编辑功能，上传至公开静态托管时，任何获得网址的人都可以访问；`robots.txt` 仅请求搜索引擎不收录，并非访问控制。更新需重新导出和手动发布。
+
+[展示范围与资料说明](../../DISCLOSURE.md)

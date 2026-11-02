@@ -6,7 +6,7 @@ import { reportMarkdown, reportHtml } from '../lib/report.mjs';
 function fixture() {
   const post = { id: 'bilibili:BV1', platform: 'bilibili', url: 'https://www.bilibili.com/video/BV1?session=PRIVATE', text: 'UNPUBLISHED_RAW_TEXT', authorId: 'PRIVATE_AUTHOR', comments: ['PRIVATE_COMMENT'], collectedAt: '2026-11-02T03:00:00Z', publishedAt: null, method: 'browser' };
   const event = { id: 'event1', title: '待核实的活动讨论', summary: '仅代表可见样本', categories: ['版本活动'], relevance: 100, direction: 'risk', confidence: 'unverified', evidence: [{ postId: post.id, role: 'claim', quote: '公开引用片段', extra: 'PRIVATE_EXTRA' }], timeline: [], impactDimensions: { strength: 1, reach: 1, urgency: 1, duration: 1 }, heat: [], internal: 'PRIVATE_EVENT' };
-  const source = { platform: 'weibo', status: 'failed', count: 0, method: 'browser', notes: ['部分发布时间不可读', 'page.goto: Timeout /Users/royshen/session'], debug: 'PRIVATE_DEBUG' };
+  const source = { platform: 'weibo', status: 'failed', count: 0, method: 'browser', notes: ['部分发布时间不可读', 'page.goto: Timeout /var/mock-session'], debug: 'PRIVATE_DEBUG' };
   return { mode: 'real', latestRun: { id: 'run1', status: 'partial', diagnostics: 'PRIVATE_RUN' }, sources: [source], analysisPending: false, verifiedRuns: { bilibili: 2 }, categories: ['版本活动'], analysis: { id: 'analysis1', runId: 'run1', mode: 'real', sourceCutoff: '2026-11-02T03:00:00Z', generatedAt: '2026-11-02T04:00:00Z', events: [event], posts: [post, { ...post, id: 'excluded', text: 'PRIVATE_EXCLUDED' }], excludedPostIds: ['excluded'], sources: [source], limitations: ['尚未完成独立人工质量验收'], rawInput: 'PRIVATE_INPUT' } };
 }
 

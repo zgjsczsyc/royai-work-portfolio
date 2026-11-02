@@ -30,3 +30,5 @@ npm run preview
 技术栈为 Vue 3、Pinia、Vue Router、Ant Design Vue、TypeScript 与 Vite。所有状态仅保存在当前页面内存中，刷新重置。没有上传文件，没有真正翻译，没有轮询或 WebSocket 后端，也不验证真实业务权限。文件名和译文夹具为虚构资料。
 
 主要源码：`src/views/NotificationCenter.vue`、`src/stores/translationPreview.ts`；独立入口与对话适配在 `src/App.vue` 和 `src/views/TranslationConversationPreview.vue`。
+
+[展示范围与资料说明](../../DISCLOSURE.md)

@@ -15,3 +15,12 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+# 本地数据、登录会话与私钥不进入作品集
+*.sqlite*
+*.db
+*.db-*
+*.pem
+*.key
+storage-state*.json
+storageState*.json
+browser-profiles/
